@@ -9,7 +9,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 await esbuild.build({
-  entryPoints: [...globSync(resolve(__dirname, 'src/page/**/*.tsx')), resolve(__dirname, 'src/index.tsx')],
+  entryPoints: [
+    ...globSync(resolve(__dirname, 'src/page/**/*.tsx')),
+    ...globSync(resolve(__dirname, 'src/controller/*.tsx')),
+  ],
   bundle: true,
   minify: true,
   format: 'esm',
