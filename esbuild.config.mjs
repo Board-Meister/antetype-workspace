@@ -1,5 +1,5 @@
 import * as esbuild from 'esbuild'
-import {globSync} from 'glob'
+import { globSync } from 'glob'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url';
 import clear from "esbuild-plugin-output-reset";
