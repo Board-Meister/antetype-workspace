@@ -4,13 +4,15 @@
   "description": "Example module, to be reused when creating new common modules",
   "main": "dist/index.js",
   "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
     "/dist"
   ],
   "scripts": {
+    "typescript": "tsc --emitDeclarationOnly --declaration --project tsconfig.json",
     "link": "npm link @boardmeister/minstrel @boardmeister/herald @boardmeister/marshal",
     "tailwind": "tailwindcss -i ./src/input.css -o ./src/output.css --minify",
-    "build": "npm run tailwind && node esbuild.config.mjs"
+    "build": "npm run tailwind && node esbuild.config.mjs && typescript"
   },
   "repository": {
     "type": "git",
