@@ -1,11 +1,11 @@
 import type { IInjectable } from "@boardmeister/marshal"
-import type { IMinstrel } from "@boardmeister/minstrel"
+import type { Minstrel } from "@boardmeister/minstrel"
 import type { IHerald } from "@boardmeister/herald"
 import type React from "react"
 import type styled from "styled-components";
 
 interface IInjected extends Record<string, object> {
-  minstrel: IMinstrel;
+  minstrel: Minstrel;
   herald: IHerald;
   react: typeof React;
   styled: typeof styled;

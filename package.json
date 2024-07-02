@@ -12,7 +12,7 @@
     "typescript": "tsc --emitDeclarationOnly --declaration --project tsconfig.json",
     "link": "npm link @boardmeister/minstrel @boardmeister/herald @boardmeister/marshal",
     "tailwind": "tailwindcss -i ./src/input.css -o ./src/output.css --minify",
-    "build": "npm run tailwind && node esbuild.config.mjs && typescript"
+    "build": "npm run tailwind && node esbuild.config.mjs && npm run typescript"
   },
   "repository": {
     "type": "git",
