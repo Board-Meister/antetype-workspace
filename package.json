@@ -9,7 +9,7 @@
     "/dist"
   ],
   "scripts": {
-    "typescript": "tsc --emitDeclarationOnly --declaration --project tsconfig.json",
+    "typescript": "./node_modules/.bin/dts-bundle-generator --no-check --export-referenced-types false --project tsconfig.json -o dist/index.d.ts src/index.tsx",
     "link": "npm link @boardmeister/minstrel @boardmeister/herald @boardmeister/marshal",
     "tailwind": "tailwindcss -i ./src/input.css -o ./src/output.css --minify",
     "build": "npm run tailwind && node esbuild.config.mjs && npm run typescript"
@@ -40,6 +40,7 @@
     "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^7.2.0",
     "@typescript-eslint/parser": "^7.2.0",
+    "dts-bundle-generator": "^9.5.1",
     "esbuild": "0.21.4",
     "esbuild-plugin-inline-import": "^1.0.4",
     "esbuild-plugin-output-reset": "^2.0.1",

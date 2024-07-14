@@ -1,6 +1,6 @@
 import type { IInjectable, Module } from "@boardmeister/marshal"
 import type { Minstrel, ControllerResponse } from "@boardmeister/minstrel"
-import type { IHerald } from "@boardmeister/herald"
+import type { Herald } from "@boardmeister/herald"
 import type React from "react"
 import type styled from "styled-components";
 // @ts-expect-error TS2307: Cannot find module
@@ -8,7 +8,7 @@ import styles from 'inline:../output.css'
 
 interface IInjected extends Record<string, object> {
   minstrel: Minstrel;
-  herald: IHerald;
+  herald: Herald;
   react: typeof React;
   styled: typeof styled;
 }
