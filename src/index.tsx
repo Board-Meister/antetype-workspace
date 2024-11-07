@@ -1,15 +1,23 @@
-import type { DrawEvent, ModulesEvent } from "@boardmeister/antetype"
+import type { DrawEvent, ModulesEvent, CalcEvent, IBaseDef } from "@boardmeister/antetype"
 import type { IInjectable, Module } from "@boardmeister/marshal"
 import type { Minstrel } from "@boardmeister/minstrel"
 import type { Herald, ISubscriber, Subscriptions  } from "@boardmeister/herald"
-import type { ICalcEvent } from "@boardmeister/antetype-illustrator"
 import Workspace from "@src/module";
-import { Event } from "@boardmeister/antetype"
-import { Event as IllustratorEvent } from "@boardmeister/antetype-illustrator"
+import { Event as AntetypeEvent } from "@boardmeister/antetype"
 
-interface IInjected extends Record<string, object> {
+export interface IInjected extends Record<string, object> {
   minstrel: Minstrel;
   herald: Herald;
+}
+
+export enum Event {
+  CALC = 'antetype.workspace.calc',
+}
+
+export interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
+  purpose: string;
+  layerType: string;
+  values: T;
 }
 
 export class AntetypeWorkspace {
@@ -39,7 +47,7 @@ export class AntetypeWorkspace {
       return;
     }
     const { element } = event.detail;
-    const typeToAction: Record<string, Function> = {
+    const typeToAction: Record<string, (element: IBaseDef) => void> = {
       clear: this.#instance.drawCanvas.bind(this.#instance)
     };
 
@@ -65,10 +73,20 @@ export class AntetypeWorkspace {
     }
   }
 
+  async functionToNumber(event: CustomEvent<CalcEvent>): Promise<void> {
+    event.detail.element = await this.#instance!.functionToNumber(event.detail.element);
+  }
+
   static subscriptions: Subscriptions = {
-    [IllustratorEvent.CALC]: 'calc',
-    [Event.MODULES]: 'register',
-    [Event.DRAW]: [
+    [Event.CALC]: 'calc',
+    [AntetypeEvent.CALC]: [
+      {
+        method: 'functionToNumber',
+        priority: -255,
+      },
+    ],
+    [AntetypeEvent.MODULES]: 'register',
+    [AntetypeEvent.DRAW]: [
       {
         method: 'draw',
         priority: 10,
@@ -85,5 +103,6 @@ export class AntetypeWorkspace {
   }
 }
 
+export * from "@src/module";
 const EnAntetypeWorkspace: IInjectable&ISubscriber = AntetypeWorkspace;
 export default EnAntetypeWorkspace;

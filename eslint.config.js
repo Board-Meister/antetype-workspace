@@ -16,6 +16,7 @@ export default tseslint.config(
     ],
     rules: {
       'one-var': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-extraneous-class': 'off',
       '@typescript-eslint/no-unnecessary-condition': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',

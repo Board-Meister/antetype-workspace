@@ -1,4 +1,4 @@
-import type { Modules, ISystemModule } from "@boardmeister/antetype";
+import type { Modules, ISystemModule, IBaseDef } from "@boardmeister/antetype";
 
 export interface IWorkspace {
   calc: (value: string) => number;
@@ -60,7 +60,7 @@ export default class Workspace implements IWorkspace {
       return operation;
     }
 
-    if (typeof operation != 'string') {
+    if (typeof operation != 'string' || operation.match(/[^-()\d/*+.pxw%hv ]/g)) {
       return NaN;
     }
 
@@ -92,14 +92,14 @@ export default class Workspace implements IWorkspace {
     operation.split(' ').forEach(expression => {
       expression = expression.trim();
       const last = expression[expression.length - 1],
-        secondToLast = expression[expression.length - 2]
+        secondToLast = expression[expression.length - 2],
+        result = (unitsTranslator[secondToLast + last] || unitsTranslator.default)(expression)
       ;
-      calculation += String((
-        unitsTranslator[secondToLast + last] || unitsTranslator.default
-      )(expression));
+
+      calculation += String(isNaN(result as number) ? 0 : result);
     });
 
-    const result = eval(calculation.replace(/[^-()\d/*+.]/g, ''));
+    const result = eval(calculation);
 
     if (result == undefined) {
       return NaN;
@@ -135,5 +135,58 @@ export default class Workspace implements IWorkspace {
       width,
       height,
     }
+  }
+
+  #isObject(value: any): boolean {
+    return typeof value === 'object' && !Array.isArray(value) && value !== null;
+  }
+
+  async functionToNumber(data: IBaseDef): Promise<IBaseDef> {
+    return await this.#iterateResolveAndCloneObject(data) as IBaseDef;
+  }
+
+  async #iterateResolveAndCloneObject(object: Record<string, any>): Promise<Record<string, any>> {
+    const clone = {} as Record<string, any>;
+    await Promise.all(Object.keys(object).map(async key => {
+      let result = await this.#resolve(object, key);
+
+      if (this.#isObject(result)) {
+        result = await this.#iterateResolveAndCloneObject(result);
+      } else if (Array.isArray(result)) {
+        result = await this.#iterateResolveAndCloneArray(result);
+      }
+
+      clone[key] = result;
+    }));
+
+    return clone;
+  }
+
+  async #iterateResolveAndCloneArray(object: any[]): Promise<any[]> {
+    const clone = [] as any[];
+    await Promise.all(Object.keys(object).map(async key => {
+      let result = await this.#resolve(object, key);
+
+      if (this.#isObject(result)) {
+        result = await this.#iterateResolveAndCloneObject(result);
+      } else if (Array.isArray(result)) {
+        result = await this.#iterateResolveAndCloneArray(result);
+      }
+
+      clone.push(result);
+    }));
+
+    return clone;
+  }
+
+  async #resolve(object: Record<string, any>, key: string): Promise<any> {
+    const value = object[key];
+    const resolved = typeof value == 'function'
+      ? await value(this.#modules, object)
+      : value
+    ;
+    const calculated = this.calc(resolved);
+
+    return isNaN(resolved) ? resolved : calculated;
   }
 }

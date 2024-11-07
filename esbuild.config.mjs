@@ -14,7 +14,7 @@ await esbuild.build({
     resolve(__dirname, 'src/module.tsx'),
   ],
   bundle: true,
-  minify: true,
+  // minify: true,
   format: 'esm',
   outdir: './dist',
   platform: 'browser',

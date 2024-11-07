@@ -6,6 +6,9 @@ import { RouteProps } from 'react-router-dom';
 interface DrawEvent {
 	element: IBaseDef;
 }
+interface CalcEvent {
+	element: IBaseDef;
+}
 interface ModulesEvent {
 	modules: Modules;
 	canvas: HTMLCanvasElement | null;
@@ -122,6 +125,7 @@ declare class Herald {
 	static inject: Record<string, string>;
 	inject(injections: IInjection): void;
 	dispatch(event: CustomEvent): Promise<void>;
+	dispatchSync(event: CustomEvent): void;
 	batch(events: IEventRegistration[]): () => void;
 	register(event: string, subscription: AmbiguousSubscription, constraint?: string | Module$1 | null, sort?: boolean, symbol?: symbol | null): () => void;
 	unregister(event: string, symbol: symbol): void;
@@ -153,14 +157,24 @@ declare class Minstrel {
 	component<T>(module: Module$1, suffix: string, scope?: Record<string, any>): React$1.FC<T>;
 	asset(module: Module$1, suffix: string): string;
 }
-interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
+export interface IWorkspace {
+	calc: (value: string) => number;
+}
+export interface IWorkspaceSettings {
+	height: number;
+	width: number;
+}
+export interface IInjected extends Record<string, object> {
+	minstrel: Minstrel;
+	herald: Herald;
+}
+declare enum Event$1 {
+	CALC = "antetype.workspace.calc"
+}
+export interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
 	purpose: string;
 	layerType: string;
 	values: T;
-}
-interface IInjected extends Record<string, object> {
-	minstrel: Minstrel;
-	herald: Herald;
 }
 export declare class AntetypeWorkspace {
 	#private;
@@ -171,12 +185,14 @@ export declare class AntetypeWorkspace {
 	setOrigin(): void;
 	restoreOrigin(): void;
 	calc(event: CustomEvent<ICalcEvent>): void;
+	functionToNumber(event: CustomEvent<CalcEvent>): Promise<void>;
 	static subscriptions: Subscriptions;
 }
 declare const EnAntetypeWorkspace: IInjectable & ISubscriber;
 
 export {
 	EnAntetypeWorkspace as default,
+	Event$1 as Event,
 };
 
 export {};
