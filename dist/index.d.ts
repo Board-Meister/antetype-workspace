@@ -3,35 +3,97 @@
 import React$1 from 'react';
 import { RouteProps } from 'react-router-dom';
 
+interface IFont {
+	url: string;
+	name: string;
+}
 interface DrawEvent {
 	element: IBaseDef;
 }
 interface CalcEvent {
-	element: IBaseDef;
+	element: IBaseDef | null;
 }
 interface ModulesEvent {
 	modules: Modules;
 	canvas: HTMLCanvasElement | null;
 }
-declare type Module = Record<string, Function> | Object;
-declare type Modules = Record<string, Module>;
+interface Module {
+}
+interface Modules {
+	[key: string]: Module;
+	system: ISystemModule;
+}
 declare type XValue = number;
 declare type YValue = XValue;
 interface IStart {
 	x: XValue;
 	y: YValue;
 }
-interface IBaseDef<T = never> {
+interface ISize {
+	w: XValue;
+	h: YValue;
+}
+interface IArea {
+	size: ISize;
 	start: IStart;
+}
+interface IHierarchy {
+	parent: IParentDef;
+	position: number;
+}
+interface IBaseDef<T = never> {
+	[key: symbol | string]: any;
+	hierarchy?: IHierarchy;
+	start: IStart;
+	size: ISize;
 	type: string;
+	can?: {
+		move?: boolean;
+		scale?: boolean;
+		remove?: boolean;
+	};
+	area?: IArea;
 	data?: T;
+}
+interface IParentDef extends IBaseDef {
+	layout: IBaseDef[];
+}
+interface ISystemModule extends Module {
+	manage: {
+		move: (def: IBaseDef, newStart: IStart) => Promise<void>;
+		resize: (def: IBaseDef, newSize: ISize) => Promise<void>;
+		remove: (def: IBaseDef) => void;
+	};
+	view: {
+		recalc: (parent: IParentDef) => Promise<IBaseDef[]>;
+		redraw: (layout: IBaseDef[]) => void;
+		redrawDebounce: () => void;
+		calc: (element: IBaseDef, parent: IParentDef, position: number) => Promise<IBaseDef>;
+		draw: (element: IBaseDef) => Promise<void>;
+		reloadStructure: () => Promise<void>;
+		reload: () => void;
+		size: (element: IBaseDef) => Promise<IBaseDef>;
+	};
+	font: {
+		load: (font: IFont) => Promise<void>;
+	};
+	policies: {
+		markAsLayer: (layer: IBaseDef) => IBaseDef;
+		isLayer: (layer: Record<symbol, any>) => boolean;
+	};
+	setting: {
+		[symbol: symbol]: Record<string, any>;
+		set: (name: string, value: unknown) => void;
+		get: <T = unknown>(name: string) => T | null;
+		has: (name: string) => boolean;
+	};
 }
 interface EntryConfig {
 	source: string | object;
 	namespace: string;
 	name: string;
 	version: string;
-	arguments?: any[];
+	arguments?: unknown[];
 }
 interface RegisterConfig {
 	entry: EntryConfig;
@@ -49,16 +111,16 @@ interface RegisterConfig {
 }
 type Module$1 = Record<string, unknown>;
 interface IModuleImportObject {
-	default?: Module$1 | React$1.FC | Function;
+	default?: Module$1 | React$1.FC | ((...args: unknown[]) => void);
 }
 interface IModuleImport {
 	config: RegisterConfig;
 	module: IModuleImportObject | (() => Promise<Module$1>);
 }
 declare class _IInjectable {
-	constructor(...args: any[]);
+	constructor(...args: unknown[]);
 	inject(injections: Record<string, object>): void;
-	scope?(): Record<string, any>;
+	scope?(): Record<string, unknown>;
 	static inject: Record<string, string>;
 }
 type IInjectable = typeof _IInjectable;
@@ -68,10 +130,10 @@ declare class Marshal {
 	registered: Record<string, RegisterConfig>;
 	loaded: Record<string, object>;
 	tagMap: Record<string, IModuleImport[]>;
-	scope: Record<string, any>;
+	scope: Record<string, unknown>;
 	instanceMap: WeakMap<Module$1, RegisterConfig>;
 	constructor();
-	addScope(name: string, value: any): void;
+	addScope(name: string, value: unknown): void;
 	render(): void;
 	register(config: RegisterConfig): void;
 	getModuleConstraint(config: RegisterConfig): string;
@@ -85,9 +147,10 @@ declare class Marshal {
 	getMappedInstance(module: Module$1): RegisterConfig | undefined;
 	loadDependencies(module: Module$1, config: RegisterConfig): Record<string, object> | undefined | false;
 	isESClass(fn: unknown): boolean;
+	orderModules(moduleRegistry: Record<string, RegisterConfig>): RegisterConfig[];
 	generateLoadGroups(toSend: Record<string, RegisterConfig>): Promise<IModuleImport>[];
 	isTag(string: string): boolean;
-	import(source: string, addScope?: Record<string, any>): Promise<IModuleImportObject>;
+	import(source: string, addScope?: Record<string, unknown>): Promise<IModuleImportObject>;
 	importModule(config: RegisterConfig): Promise<IModuleImportObject>;
 	retrieveModulePromise(config: RegisterConfig): Promise<IModuleImport>;
 	isObjectEmpty(obj: object): boolean;
@@ -159,10 +222,15 @@ declare class Minstrel {
 }
 export interface IWorkspace {
 	calc: (value: string) => number;
+	cloneDefinitions: (data: IBaseDef) => Promise<IBaseDef>;
 }
 export interface IWorkspaceSettings {
-	height: number;
-	width: number;
+	height?: number;
+	width?: number;
+	relative?: {
+		height?: number;
+		width?: number;
+	};
 }
 export interface IInjected extends Record<string, object> {
 	minstrel: Minstrel;
@@ -185,7 +253,10 @@ export declare class AntetypeWorkspace {
 	setOrigin(): void;
 	restoreOrigin(): void;
 	calc(event: CustomEvent<ICalcEvent>): void;
-	functionToNumber(event: CustomEvent<CalcEvent>): Promise<void>;
+	/**
+	 * @TODO Should this be moved to the core?
+	 */
+	cloneDefinitions(event: CustomEvent<CalcEvent>): Promise<void>;
 	static subscriptions: Subscriptions;
 }
 declare const EnAntetypeWorkspace: IInjectable & ISubscriber;

@@ -1,5 +1,7 @@
 // src/module.tsx
+var cloned = Symbol("cloned");
 var Workspace = class {
+  #maxDepth = 50;
   #canvas;
   #modules;
   #ctx;
@@ -45,7 +47,8 @@ var Workspace = class {
       return NaN;
     }
     const convertUnitToNumber = (unit, suffixLen = 2) => Number(unit.slice(0, unit.length - suffixLen));
-    const { height, width } = this.#getSize();
+    const { height: aHeight, width: aWidth } = this.#getSize();
+    const { height, width } = this.#getSizeRelative();
     const unitsTranslator = {
       "px": (number) => {
         return convertUnitToNumber(number);
@@ -57,43 +60,69 @@ var Workspace = class {
         return convertUnitToNumber(number) / 100 * height;
       },
       "vh": (number) => {
-        const height2 = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-        return convertUnitToNumber(number) / 100 * height2;
+        return convertUnitToNumber(number) / 100 * aHeight;
       },
       "vw": (number) => {
-        const width2 = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-        return convertUnitToNumber(number) / 100 * width2;
+        return convertUnitToNumber(number) / 100 * aWidth;
       },
       "default": (number) => number
     };
     let calculation = "";
     operation.split(" ").forEach((expression) => {
       expression = expression.trim();
-      const last = expression[expression.length - 1], secondToLast = expression[expression.length - 2], result2 = (unitsTranslator[secondToLast + last] || unitsTranslator.default)(expression);
-      calculation += String(isNaN(result2) ? 0 : result2);
+      const last = expression[expression.length - 1], secondToLast = expression[expression.length - 2];
+      let result2 = (unitsTranslator[secondToLast + last] || unitsTranslator.default)(expression);
+      if (typeof result2 == "number") {
+        result2 = this.#decimal(result2);
+      }
+      calculation += String(result2);
     });
     const result = eval(calculation);
     if (result == void 0) {
       return NaN;
     }
-    return result;
+    return this.#decimal(result);
+  }
+  async cloneDefinitions(data) {
+    return await this.#iterateResolveAndCloneObject(data, /* @__PURE__ */ new WeakMap());
+  }
+  #decimal(number, precision = 2) {
+    return +number.toFixed(precision);
   }
   #getSystem() {
     return this.#modules.system;
   }
   #getSettings() {
     const height2 = this.#ctx.canvas.offsetHeight;
-    return this.#getSystem().setting.get("workspace") ?? {
-      height: height2,
-      width: height2 * 0.707070707
-    };
+    const set = this.#getSystem().setting.get("workspace") ?? {};
+    if (typeof set.height != "number") {
+      set.height = height2;
+    }
+    if (typeof set.width != "number") {
+      const a4Ratio = 0.707070707;
+      set.width = height2 * a4Ratio;
+    }
+    return set;
   }
   #getSize() {
-    const ratio = this.#getSettings().width / this.#getSettings().height;
+    const { width: aWidth2, height: aHeight2 } = this.#getSettings(), ratio = aWidth2 / aHeight2;
     let height2 = this.#ctx.canvas.offsetHeight, width2 = height2 * ratio;
     if (width2 > this.#ctx.canvas.offsetWidth) {
       width2 = this.#ctx.canvas.offsetWidth;
-      height2 = width2 * (this.#getSettings().height / this.#getSettings().width);
+      height2 = width2 * (height2 / width2);
+    }
+    return {
+      width: width2,
+      height: height2
+    };
+  }
+  #getSizeRelative() {
+    const settings = this.#getSettings(), { width: aWidth2, height: aHeight2 } = this.#getSize(), rWidth = settings.relative?.width ?? aWidth2, rHeight = settings.relative?.height ?? aHeight2;
+    const ratio = rWidth / rHeight;
+    let height2 = this.#ctx.canvas.offsetHeight, width2 = height2 * ratio;
+    if (width2 > this.#ctx.canvas.offsetWidth) {
+      width2 = this.#ctx.canvas.offsetWidth;
+      height2 = width2 * (rHeight / rWidth);
     }
     return {
       width: width2,
@@ -103,30 +132,43 @@ var Workspace = class {
   #isObject(value) {
     return typeof value === "object" && !Array.isArray(value) && value !== null;
   }
-  async functionToNumber(data) {
-    return await this.#iterateResolveAndCloneObject(data);
-  }
-  async #iterateResolveAndCloneObject(object) {
+  async #iterateResolveAndCloneObject(object, recursive, depth = 0) {
+    if (recursive.has(object)) {
+      return recursive.get(object);
+    }
+    if (object[cloned]) {
+      return object;
+    }
     const clone = {};
+    recursive.set(object, clone);
+    clone[cloned] = true;
+    if (this.#maxDepth <= depth + 1) {
+      console.error("We've reach limit depth!", object);
+      throw new Error("limit reached");
+    }
     await Promise.all(Object.keys(object).map(async (key) => {
       let result2 = await this.#resolve(object, key);
       if (this.#isObject(result2)) {
-        result2 = await this.#iterateResolveAndCloneObject(result2);
+        result2 = await this.#iterateResolveAndCloneObject(result2, recursive, depth + 1);
       } else if (Array.isArray(result2)) {
-        result2 = await this.#iterateResolveAndCloneArray(result2);
+        result2 = await this.#iterateResolveAndCloneArray(result2, recursive, depth + 1);
       }
       clone[key] = result2;
     }));
     return clone;
   }
-  async #iterateResolveAndCloneArray(object) {
+  async #iterateResolveAndCloneArray(object, recursive, depth = 0) {
     const clone = [];
+    if (this.#maxDepth <= depth + 1) {
+      console.error("We've reach limit depth!", object);
+      throw new Error("limit reached");
+    }
     await Promise.all(Object.keys(object).map(async (key) => {
       let result2 = await this.#resolve(object, key);
       if (this.#isObject(result2)) {
-        result2 = await this.#iterateResolveAndCloneObject(result2);
+        result2 = await this.#iterateResolveAndCloneObject(result2, recursive, depth + 1);
       } else if (Array.isArray(result2)) {
-        result2 = await this.#iterateResolveAndCloneArray(result2);
+        result2 = await this.#iterateResolveAndCloneArray(result2, recursive, depth + 1);
       }
       clone.push(result2);
     }));
@@ -134,9 +176,7 @@ var Workspace = class {
   }
   async #resolve(object, key) {
     const value = object[key];
-    const resolved = typeof value == "function" ? await value(this.#modules, object) : value;
-    const calculated = this.calc(resolved);
-    return isNaN(resolved) ? resolved : calculated;
+    return typeof value == "function" ? await value(this.#modules, this.#ctx, object) : value;
   }
 };
 export {

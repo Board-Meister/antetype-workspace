@@ -12,8 +12,7 @@
   "scripts": {
     "typescript": "./node_modules/.bin/dts-bundle-generator --no-check --export-referenced-types false --project tsconfig.json -o dist/index.d.ts src/index.tsx",
     "link": "npm link @boardmeister/antetype @boardmeister/antetype-illustrator @boardmeister/minstrel @boardmeister/herald @boardmeister/marshal",
-    "tailwind": "tailwindcss -i ./src/input.css -o ./src/output.css --minify",
-    "build": "npm run tailwind && node esbuild.config.mjs && npm run typescript"
+    "build": "node esbuild.config.mjs && npm run typescript"
   },
   "repository": {
     "type": "git",

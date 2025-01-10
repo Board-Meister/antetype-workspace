@@ -2,14 +2,24 @@ import type { Modules, ISystemModule, IBaseDef } from "@boardmeister/antetype";
 
 export interface IWorkspace {
   calc: (value: string) => number;
+  cloneDefinitions: (data: IBaseDef) => Promise<IBaseDef>;
 }
 
 export interface IWorkspaceSettings {
-  height: number,
-  width: number;
+  height?: number,
+  width?: number;
+  relative?: {
+    height?: number,
+    width?: number;
+  }
 }
 
+declare type RecursiveWeakMap = WeakMap<Record<string, any>, Record<string, any>>;
+
+const cloned = Symbol('cloned');
+
 export default class Workspace implements IWorkspace {
+  #maxDepth = 50;
   #canvas: HTMLCanvasElement;
   #modules: Modules;
   #ctx: CanvasRenderingContext2D;
@@ -65,7 +75,8 @@ export default class Workspace implements IWorkspace {
     }
 
     const convertUnitToNumber = (unit: string, suffixLen = 2): number => Number(unit.slice(0, unit.length - suffixLen));
-    const { height, width } = this.#getSize();
+    const { height: aHeight, width: aWidth } = this.#getSize();
+    const { height, width } = this.#getSizeRelative();
 
     const unitsTranslator: Record<string, (number: string) => number|string> = {
       'px': (number: string) => {
@@ -78,12 +89,10 @@ export default class Workspace implements IWorkspace {
         return (convertUnitToNumber(number)/100) * height;
       },
       'vh': (number: string) => {
-        const height = window.innerHeight || document.documentElement.clientHeight|| document.body.clientHeight;
-        return (convertUnitToNumber(number)/100) * height;
+        return (convertUnitToNumber(number)/100) * aHeight;
       },
       'vw': (number: string) => {
-        const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-        return (convertUnitToNumber(number)/100) * width;
+        return (convertUnitToNumber(number)/100) * aWidth;
       },
       'default': (number: string) => number,
     };
@@ -92,11 +101,15 @@ export default class Workspace implements IWorkspace {
     operation.split(' ').forEach(expression => {
       expression = expression.trim();
       const last = expression[expression.length - 1],
-        secondToLast = expression[expression.length - 2],
-        result = (unitsTranslator[secondToLast + last] || unitsTranslator.default)(expression)
+        secondToLast = expression[expression.length - 2]
       ;
+      let result = (unitsTranslator[secondToLast + last] || unitsTranslator.default)(expression);
 
-      calculation += String(isNaN(result as number) ? 0 : result);
+      if (typeof result == 'number') {
+        result = this.#decimal(result);
+      }
+
+      calculation += String(result);
     });
 
     const result = eval(calculation);
@@ -105,7 +118,23 @@ export default class Workspace implements IWorkspace {
       return NaN;
     }
 
-    return result;
+    /*
+      Requires some explanation: due to floating point issues we are limiting any calculation results
+      to be a float with precision of 2. This allows us to keep a consistent state between layers even if
+      results are later used to preform other calculations.
+
+      Also, we don't care about the issue of wrong round (1.255 to 1.25) as this is so small that user won't be
+      able to see the difference.
+     */
+    return this.#decimal(result);
+  }
+
+  async cloneDefinitions(data: IBaseDef): Promise<IBaseDef> {
+    return await this.#iterateResolveAndCloneObject(data, new WeakMap()) as IBaseDef;
+  }
+
+  #decimal(number: number, precision = 2): number {
+    return +number.toFixed(precision);
   }
 
   #getSystem(): ISystemModule {
@@ -114,21 +143,53 @@ export default class Workspace implements IWorkspace {
 
   #getSettings(): IWorkspaceSettings {
     const height = this.#ctx.canvas.offsetHeight;
-    return this.#getSystem().setting.get('workspace') ?? {
-      height,
-      width: height * 0.707070707
-    };
+    const set = (this.#getSystem().setting.get('workspace') ?? {}) as IWorkspaceSettings;
+    if (typeof set.height != 'number') {
+      set.height = height;
+    }
+
+    if (typeof set.width != 'number') {
+      const a4Ratio = 0.707070707; // Default A4
+      set.width = height * a4Ratio;
+    }
+
+    return set;
   }
 
   #getSize(): { width: number, height: number} {
-    const ratio = this.#getSettings().width/this.#getSettings().height;
+    const { width: aWidth, height: aHeight } = this.#getSettings()!,
+      ratio = aWidth!/aHeight!
+    ;
     let height = this.#ctx.canvas.offsetHeight,
       width = height * ratio
     ;
 
     if (width > this.#ctx.canvas.offsetWidth) {
       width = this.#ctx.canvas.offsetWidth;
-      height = width * (this.#getSettings().height/this.#getSettings().width);
+      height = width * (height/width);
+    }
+
+    return {
+      width,
+      height,
+    }
+  }
+
+  #getSizeRelative(): { width: number, height: number} {
+    const settings = this.#getSettings(),
+      { width: aWidth, height: aHeight } = this.#getSize(),
+      rWidth = settings.relative?.width ?? aWidth,
+      rHeight = settings.relative?.height ?? aHeight
+    ;
+
+    const ratio = rWidth/rHeight;
+    let height = this.#ctx.canvas.offsetHeight,
+      width = height * ratio
+    ;
+
+    if (width > this.#ctx.canvas.offsetWidth) {
+      width = this.#ctx.canvas.offsetWidth;
+      height = width * (rHeight/rWidth);
     }
 
     return {
@@ -141,19 +202,34 @@ export default class Workspace implements IWorkspace {
     return typeof value === 'object' && !Array.isArray(value) && value !== null;
   }
 
-  async functionToNumber(data: IBaseDef): Promise<IBaseDef> {
-    return await this.#iterateResolveAndCloneObject(data) as IBaseDef;
-  }
+  async #iterateResolveAndCloneObject(
+    object: Record<string|symbol, any>,
+    recursive: RecursiveWeakMap,
+    depth = 0,
+  ): Promise<Record<string, any>> {
+    if (recursive.has(object)) {
+      return recursive.get(object)!;
+    }
 
-  async #iterateResolveAndCloneObject(object: Record<string, any>): Promise<Record<string, any>> {
-    const clone = {} as Record<string, any>;
+    if (object[cloned]) {
+      return object;
+    }
+
+    const clone = {} as Record<string|symbol, any>;
+    recursive.set(object, clone);
+    clone[cloned] = true;
+    if (this.#maxDepth <= depth + 1) {
+      console.error('We\'ve reach limit depth!', object);
+      throw new Error('limit reached');
+    }
+
     await Promise.all(Object.keys(object).map(async key => {
       let result = await this.#resolve(object, key);
 
       if (this.#isObject(result)) {
-        result = await this.#iterateResolveAndCloneObject(result);
+        result = await this.#iterateResolveAndCloneObject(result, recursive, depth + 1);
       } else if (Array.isArray(result)) {
-        result = await this.#iterateResolveAndCloneArray(result);
+        result = await this.#iterateResolveAndCloneArray(result, recursive, depth + 1);
       }
 
       clone[key] = result;
@@ -162,15 +238,24 @@ export default class Workspace implements IWorkspace {
     return clone;
   }
 
-  async #iterateResolveAndCloneArray(object: any[]): Promise<any[]> {
+  async #iterateResolveAndCloneArray(
+    object: any[],
+    recursive: RecursiveWeakMap,
+    depth = 0,
+  ): Promise<any[]> {
     const clone = [] as any[];
+    if (this.#maxDepth <= depth + 1) {
+      console.error('We\'ve reach limit depth!', object);
+      throw new Error('limit reached');
+    }
+
     await Promise.all(Object.keys(object).map(async key => {
       let result = await this.#resolve(object, key);
 
       if (this.#isObject(result)) {
-        result = await this.#iterateResolveAndCloneObject(result);
+        result = await this.#iterateResolveAndCloneObject(result, recursive, depth + 1);
       } else if (Array.isArray(result)) {
-        result = await this.#iterateResolveAndCloneArray(result);
+        result = await this.#iterateResolveAndCloneArray(result, recursive, depth + 1);
       }
 
       clone.push(result);
@@ -181,12 +266,9 @@ export default class Workspace implements IWorkspace {
 
   async #resolve(object: Record<string, any>, key: string): Promise<any> {
     const value = object[key];
-    const resolved = typeof value == 'function'
-      ? await value(this.#modules, object)
+    return typeof value == 'function'
+      ? await value(this.#modules, this.#ctx, object)
       : value
     ;
-    const calculated = this.calc(resolved);
-
-    return isNaN(resolved) ? resolved : calculated;
   }
 }

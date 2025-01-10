@@ -73,15 +73,22 @@ export class AntetypeWorkspace {
     }
   }
 
-  async functionToNumber(event: CustomEvent<CalcEvent>): Promise<void> {
-    event.detail.element = await this.#instance!.functionToNumber(event.detail.element);
+  /**
+   * @TODO Should this be moved to the core?
+   */
+  async cloneDefinitions(event: CustomEvent<CalcEvent>): Promise<void> {
+    if (event.detail.element === null) {
+      return;
+    }
+
+    event.detail.element = await this.#instance!.cloneDefinitions(event.detail.element);
   }
 
   static subscriptions: Subscriptions = {
     [Event.CALC]: 'calc',
     [AntetypeEvent.CALC]: [
       {
-        method: 'functionToNumber',
+        method: 'cloneDefinitions',
         priority: -255,
       },
     ],
@@ -89,7 +96,7 @@ export class AntetypeWorkspace {
     [AntetypeEvent.DRAW]: [
       {
         method: 'draw',
-        priority: 10,
+        priority: 255,
       },
       {
         method: 'setOrigin',
