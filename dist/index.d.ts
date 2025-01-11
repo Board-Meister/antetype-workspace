@@ -3,25 +3,11 @@
 import React$1 from 'react';
 import { RouteProps } from 'react-router-dom';
 
-interface IFont {
-	url: string;
-	name: string;
-}
 interface DrawEvent {
 	element: IBaseDef;
 }
 interface CalcEvent {
 	element: IBaseDef | null;
-}
-interface ModulesEvent {
-	modules: Modules;
-	canvas: HTMLCanvasElement | null;
-}
-interface Module {
-}
-interface Modules {
-	[key: string]: Module;
-	system: ISystemModule;
 }
 declare type XValue = number;
 declare type YValue = XValue;
@@ -38,11 +24,11 @@ interface IArea {
 	start: IStart;
 }
 interface IHierarchy {
-	parent: IParentDef;
+	parent: IParentDef | null;
 	position: number;
 }
 interface IBaseDef<T = never> {
-	[key: symbol | string]: any;
+	[key: symbol | string]: unknown;
 	hierarchy?: IHierarchy;
 	start: IStart;
 	size: ISize;
@@ -56,37 +42,17 @@ interface IBaseDef<T = never> {
 	data?: T;
 }
 interface IParentDef extends IBaseDef {
-	layout: IBaseDef[];
+	layout: Layout;
 }
-interface ISystemModule extends Module {
-	manage: {
-		move: (def: IBaseDef, newStart: IStart) => Promise<void>;
-		resize: (def: IBaseDef, newSize: ISize) => Promise<void>;
-		remove: (def: IBaseDef) => void;
-	};
-	view: {
-		recalc: (parent: IParentDef) => Promise<IBaseDef[]>;
-		redraw: (layout: IBaseDef[]) => void;
-		redrawDebounce: () => void;
-		calc: (element: IBaseDef, parent: IParentDef, position: number) => Promise<IBaseDef>;
-		draw: (element: IBaseDef) => Promise<void>;
-		reloadStructure: () => Promise<void>;
-		reload: () => void;
-		size: (element: IBaseDef) => Promise<IBaseDef>;
-	};
-	font: {
-		load: (font: IFont) => Promise<void>;
-	};
-	policies: {
-		markAsLayer: (layer: IBaseDef) => IBaseDef;
-		isLayer: (layer: Record<symbol, any>) => boolean;
-	};
-	setting: {
-		[symbol: symbol]: Record<string, any>;
-		set: (name: string, value: unknown) => void;
-		get: <T = unknown>(name: string) => T | null;
-		has: (name: string) => boolean;
-	};
+type Layout = (IBaseDef | IParentDef)[];
+interface ModulesEvent {
+	modules: Modules;
+	canvas: HTMLCanvasElement | null;
+}
+interface Module {
+}
+interface Modules {
+	[key: string]: Module | undefined;
 }
 interface EntryConfig {
 	source: string | object;

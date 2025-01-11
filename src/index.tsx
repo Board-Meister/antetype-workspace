@@ -1,9 +1,11 @@
-import type { DrawEvent, ModulesEvent, CalcEvent, IBaseDef } from "@boardmeister/antetype"
+import type { DrawEvent, CalcEvent, IBaseDef } from "@boardmeister/antetype-core"
+import type { ModulesEvent } from "@boardmeister/antetype"
 import type { IInjectable, Module } from "@boardmeister/marshal"
 import type { Minstrel } from "@boardmeister/minstrel"
 import type { Herald, ISubscriber, Subscriptions  } from "@boardmeister/herald"
 import Workspace from "@src/module";
 import { Event as AntetypeEvent } from "@boardmeister/antetype"
+import { Event as AntetypeCoreEvent } from "@boardmeister/antetype-core"
 
 export interface IInjected extends Record<string, object> {
   minstrel: Minstrel;
@@ -86,14 +88,14 @@ export class AntetypeWorkspace {
 
   static subscriptions: Subscriptions = {
     [Event.CALC]: 'calc',
-    [AntetypeEvent.CALC]: [
+    [AntetypeCoreEvent.CALC]: [
       {
         method: 'cloneDefinitions',
         priority: -255,
       },
     ],
     [AntetypeEvent.MODULES]: 'register',
-    [AntetypeEvent.DRAW]: [
+    [AntetypeCoreEvent.DRAW]: [
       {
         method: 'draw',
         priority: 255,

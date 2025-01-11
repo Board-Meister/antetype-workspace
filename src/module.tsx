@@ -1,4 +1,5 @@
-import type { Modules, ISystemModule, IBaseDef } from "@boardmeister/antetype";
+import type { ICore, IBaseDef } from "@boardmeister/antetype-core";
+import type { Modules } from "@boardmeister/antetype";
 
 export interface IWorkspace {
   calc: (value: string) => number;
@@ -137,8 +138,8 @@ export default class Workspace implements IWorkspace {
     return +number.toFixed(precision);
   }
 
-  #getSystem(): ISystemModule {
-    return this.#modules.system as ISystemModule;
+  #getSystem(): ICore {
+    return this.#modules.core as ICore;
   }
 
   #getSettings(): IWorkspaceSettings {

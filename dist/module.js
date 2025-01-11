@@ -90,7 +90,7 @@ var Workspace = class {
     return +number.toFixed(precision);
   }
   #getSystem() {
-    return this.#modules.system;
+    return this.#modules.core;
   }
   #getSettings() {
     const height2 = this.#ctx.canvas.offsetHeight;
