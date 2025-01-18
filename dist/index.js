@@ -1,4 +1,4 @@
-// ../../tool/antetype/dist/index.js
+// ../antetype-cursor/dist/index.js
 var Event = /* @__PURE__ */ ((Event22) => {
   Event22["STRUCTURE"] = "antetype.structure";
   Event22["MIDDLE"] = "antetype.structure.middle";
@@ -10,43 +10,150 @@ var Event = /* @__PURE__ */ ((Event22) => {
   Event22["MODULES"] = "antetype.modules";
   return Event22;
 })(Event || {});
-
-// ../antetype-core/dist/index.js
-var n = ((t) => (t.STRUCTURE = "antetype.structure", t.MIDDLE = "antetype.structure.middle", t.BAR_BOTTOM = "antetype.structure.bar.bottom", t.CENTER = "antetype.structure.center", t.COLUMN_LEFT = "antetype.structure.column.left", t.COLUMN_RIGHT = "antetype.structure.column.right", t.BAR_TOP = "antetype.structure.bar.top", t.MODULES = "antetype.modules", t))(n || {});
-var l = ((e) => (e.INIT = "antetype.init", e.DRAW = "antetype.draw", e.CALC = "antetype.calc", e))(l || {});
-var o = class {
+var i = ((t) => (t.STRUCTURE = "antetype.structure", t.MIDDLE = "antetype.structure.middle", t.BAR_BOTTOM = "antetype.structure.bar.bottom", t.CENTER = "antetype.structure.center", t.COLUMN_LEFT = "antetype.structure.column.left", t.COLUMN_RIGHT = "antetype.structure.column.right", t.BAR_TOP = "antetype.structure.bar.top", t.MODULES = "antetype.modules", t))(i || {});
+var c = ((r) => (r.INIT = "antetype.init", r.DRAW = "antetype.draw", r.CALC = "antetype.calc", r))(c || {});
+var s = class {
   #t;
   #r = null;
   #e = null;
   static inject = { minstrel: "boardmeister/minstrel", herald: "boardmeister/herald" };
-  inject(r) {
-    this.#t = r;
+  inject(e) {
+    this.#t = e;
   }
-  async #a(r, a) {
+  async #n(e, n) {
     if (!this.#e) {
-      let e = this.#t.minstrel.getResourceUrl(this, "core.js");
-      this.#r = (await import(e)).default, this.#e = this.#r({ canvas: a, modules: r, injected: this.#t });
+      let r = this.#t.minstrel.getResourceUrl(this, "core.js");
+      this.#r = (await import(r)).default, this.#e = this.#r({ canvas: n, modules: e, injected: this.#t });
     }
     return this.#e;
   }
-  async register(r) {
-    let { modules: a, canvas: e } = r.detail;
-    a.core = await this.#a(a, e);
+  async register(e) {
+    let { modules: n, canvas: r } = e.detail;
+    n.core = await this.#n(n, r);
   }
-  async init(r) {
+  async init(e) {
     if (!this.#e) throw new Error("Instance not loaded, trigger registration event first");
-    let { base: a } = r.detail, e = { type: "document", base: a, layout: [], start: { x: 0, y: 0 }, size: { w: 0, h: 0 } }, i = [];
-    return (this.#e.setting.get("fonts") ?? []).forEach((s) => {
-      i.push(this.#e.font.load(s));
-    }), await Promise.all(i), e.layout = await this.#e.view.recalculate(e, e.base), await this.#e.view.redraw(e.layout), e;
+    let { base: n, settings: r } = e.detail;
+    for (let a in r) this.#e.setting.set(a, r[a]);
+    let o = this.#e.meta.document;
+    o.base = n;
+    let l = [];
+    return (this.#e.setting.get("fonts") ?? []).forEach((a) => {
+      l.push(this.#e.font.load(a));
+    }), await Promise.all(l), o.layout = await this.#e.view.recalculate(o, o.base), await this.#e.view.redraw(o.layout), o;
   }
-  static subscriptions = { [n.MODULES]: "register", "antetype.init": "init" };
+  async cloneDefinitions(e) {
+    if (!this.#e) throw new Error("Instance not loaded, trigger registration event first");
+    e.detail.element !== null && (e.detail.element = await this.#e.clone.definitions(e.detail.element));
+  }
+  static subscriptions = { [i.MODULES]: "register", "antetype.init": "init", "antetype.calc": [{ method: "cloneDefinitions", priority: -255 }] };
+};
+var Event2 = /* @__PURE__ */ ((Event32) => {
+  Event32["POSITION"] = "antetype.cursor.position";
+  Event32["DOWN"] = "antetype.cursor.on.down";
+  Event32["UP"] = "antetype.cursor.on.up";
+  Event32["MOVE"] = "antetype.cursor.on.move";
+  Event32["SLIP"] = "antetype.cursor.on.slip";
+  return Event32;
+})(Event2 || {});
+var AntetypeCursor = class {
+  #injected;
+  #module = null;
+  #instance = null;
+  static inject = {
+    minstrel: "boardmeister/minstrel",
+    herald: "boardmeister/herald"
+  };
+  inject(injections) {
+    this.#injected = injections;
+  }
+  async register(event) {
+    const { modules, canvas } = event.detail;
+    if (!this.#module) {
+      const module = this.#injected.minstrel.getResourceUrl(this, "module.js");
+      this.#module = (await import(module)).default;
+    }
+    this.#instance = modules.transform = this.#module({
+      canvas,
+      modules,
+      injected: this.#injected
+    });
+  }
+  // @TODO there is not unregister method to remove all subscriptions
+  draw(event) {
+    if (!this.#instance) {
+      return;
+    }
+    const { element } = event.detail;
+    const typeToAction = {
+      selection: this.#instance.drawSelection
+    };
+    const el = typeToAction[element.type];
+    if (typeof el == "function") {
+      el(element);
+    }
+  }
+  static subscriptions = {
+    [Event.MODULES]: "register",
+    [c.DRAW]: "draw"
+  };
+};
+
+// ../../tool/antetype/dist/index.js
+var Event3 = /* @__PURE__ */ ((Event22) => {
+  Event22["STRUCTURE"] = "antetype.structure";
+  Event22["MIDDLE"] = "antetype.structure.middle";
+  Event22["BAR_BOTTOM"] = "antetype.structure.bar.bottom";
+  Event22["CENTER"] = "antetype.structure.center";
+  Event22["COLUMN_LEFT"] = "antetype.structure.column.left";
+  Event22["COLUMN_RIGHT"] = "antetype.structure.column.right";
+  Event22["BAR_TOP"] = "antetype.structure.bar.top";
+  Event22["MODULES"] = "antetype.modules";
+  return Event22;
+})(Event3 || {});
+
+// ../antetype-core/dist/index.js
+var i2 = ((t) => (t.STRUCTURE = "antetype.structure", t.MIDDLE = "antetype.structure.middle", t.BAR_BOTTOM = "antetype.structure.bar.bottom", t.CENTER = "antetype.structure.center", t.COLUMN_LEFT = "antetype.structure.column.left", t.COLUMN_RIGHT = "antetype.structure.column.right", t.BAR_TOP = "antetype.structure.bar.top", t.MODULES = "antetype.modules", t))(i2 || {});
+var c2 = ((r) => (r.INIT = "antetype.init", r.DRAW = "antetype.draw", r.CALC = "antetype.calc", r))(c2 || {});
+var s2 = class {
+  #t;
+  #r = null;
+  #e = null;
+  static inject = { minstrel: "boardmeister/minstrel", herald: "boardmeister/herald" };
+  inject(e) {
+    this.#t = e;
+  }
+  async #n(e, n) {
+    if (!this.#e) {
+      let r = this.#t.minstrel.getResourceUrl(this, "core.js");
+      this.#r = (await import(r)).default, this.#e = this.#r({ canvas: n, modules: e, injected: this.#t });
+    }
+    return this.#e;
+  }
+  async register(e) {
+    let { modules: n, canvas: r } = e.detail;
+    n.core = await this.#n(n, r);
+  }
+  async init(e) {
+    if (!this.#e) throw new Error("Instance not loaded, trigger registration event first");
+    let { base: n, settings: r } = e.detail;
+    for (let a in r) this.#e.setting.set(a, r[a]);
+    let o = this.#e.meta.document;
+    o.base = n;
+    let l = [];
+    return (this.#e.setting.get("fonts") ?? []).forEach((a) => {
+      l.push(this.#e.font.load(a));
+    }), await Promise.all(l), o.layout = await this.#e.view.recalculate(o, o.base), await this.#e.view.redraw(o.layout), o;
+  }
+  async cloneDefinitions(e) {
+    if (!this.#e) throw new Error("Instance not loaded, trigger registration event first");
+    e.detail.element !== null && (e.detail.element = await this.#e.clone.definitions(e.detail.element));
+  }
+  static subscriptions = { [i2.MODULES]: "register", "antetype.init": "init", "antetype.calc": [{ method: "cloneDefinitions", priority: -255 }] };
 };
 
 // src/module.tsx
-var cloned = Symbol("cloned");
 var Workspace = class {
-  #maxDepth = 50;
   #canvas;
   #modules;
   #ctx;
@@ -62,10 +169,26 @@ var Workspace = class {
   drawCanvas() {
     const ctx = this.#ctx;
     ctx.save();
-    ctx.fillStyle = "#FFF";
     const { height: height2, width: width2 } = this.#getSize();
+    ctx.clearRect(
+      -this.getLeft(),
+      -this.getTop(),
+      this.#canvas.width,
+      this.#canvas.height
+    );
+    ctx.fillStyle = "#FFF";
     ctx.fillRect(0, 0, width2, height2);
     ctx.restore();
+  }
+  getLeft() {
+    const ctx = this.#ctx;
+    const { width: width2 } = this.#getSize();
+    return (ctx.canvas.offsetWidth - width2) / 2;
+  }
+  getTop() {
+    const ctx = this.#ctx;
+    const { height: height2 } = this.#getSize();
+    return (ctx.canvas.offsetHeight - height2) / 2;
   }
   setOrigin() {
     this.#translationSet++;
@@ -74,8 +197,7 @@ var Workspace = class {
     }
     const ctx = this.#ctx;
     ctx.save();
-    const { height: height2, width: width2 } = this.#getSize();
-    ctx.translate((ctx.canvas.offsetWidth - width2) / 2, (ctx.canvas.offsetHeight - height2) / 2);
+    ctx.translate(this.getLeft(), this.getTop());
   }
   restore() {
     this.#translationSet--;
@@ -83,6 +205,13 @@ var Workspace = class {
       return;
     }
     this.#ctx.restore();
+  }
+  toRelative(value, direction = "x") {
+    const { height: height2, width: width2 } = this.#getSizeRelative();
+    if (direction === "x") {
+      return value / height2 * 100 + "h%";
+    }
+    return value / width2 * 100 + "w%";
   }
   calc(operation) {
     if (typeof operation == "number") {
@@ -128,9 +257,6 @@ var Workspace = class {
     }
     return this.#decimal(result);
   }
-  async cloneDefinitions(data) {
-    return await this.#iterateResolveAndCloneObject(data, /* @__PURE__ */ new WeakMap());
-  }
   #decimal(number, precision = 2) {
     return +number.toFixed(precision);
   }
@@ -163,73 +289,33 @@ var Workspace = class {
   }
   #getSizeRelative() {
     const settings = this.#getSettings(), { width: aWidth2, height: aHeight2 } = this.#getSize(), rWidth = settings.relative?.width ?? aWidth2, rHeight = settings.relative?.height ?? aHeight2;
-    const ratio = rWidth / rHeight;
-    let height2 = this.#ctx.canvas.offsetHeight, width2 = height2 * ratio;
-    if (width2 > this.#ctx.canvas.offsetWidth) {
-      width2 = this.#ctx.canvas.offsetWidth;
-      height2 = width2 * (rHeight / rWidth);
-    }
-    return {
-      width: width2,
-      height: height2
+    const size = {
+      width: settings.relative?.width ?? 0,
+      height: settings.relative?.height ?? 0
     };
-  }
-  #isObject(value) {
-    return typeof value === "object" && !Array.isArray(value) && value !== null;
-  }
-  async #iterateResolveAndCloneObject(object, recursive, depth = 0) {
-    if (recursive.has(object)) {
-      return recursive.get(object);
+    const height2 = this.#ctx.canvas.offsetHeight;
+    if (!size.width) {
+      const ratio = rWidth / rHeight;
+      size.width = height2 * ratio;
     }
-    if (object[cloned]) {
-      return object;
-    }
-    const clone = {};
-    recursive.set(object, clone);
-    clone[cloned] = true;
-    if (this.#maxDepth <= depth + 1) {
-      console.error("We've reach limit depth!", object);
-      throw new Error("limit reached");
-    }
-    await Promise.all(Object.keys(object).map(async (key) => {
-      let result2 = await this.#resolve(object, key);
-      if (this.#isObject(result2)) {
-        result2 = await this.#iterateResolveAndCloneObject(result2, recursive, depth + 1);
-      } else if (Array.isArray(result2)) {
-        result2 = await this.#iterateResolveAndCloneArray(result2, recursive, depth + 1);
+    if (!size.height) {
+      const width2 = size.width;
+      if (width2 > this.#ctx.canvas.offsetWidth) {
+        size.width = this.#ctx.canvas.offsetWidth;
+        size.height = width2 * (rHeight / rWidth);
+      } else {
+        size.height = height2;
       }
-      clone[key] = result2;
-    }));
-    return clone;
-  }
-  async #iterateResolveAndCloneArray(object, recursive, depth = 0) {
-    const clone = [];
-    if (this.#maxDepth <= depth + 1) {
-      console.error("We've reach limit depth!", object);
-      throw new Error("limit reached");
     }
-    await Promise.all(Object.keys(object).map(async (key) => {
-      let result2 = await this.#resolve(object, key);
-      if (this.#isObject(result2)) {
-        result2 = await this.#iterateResolveAndCloneObject(result2, recursive, depth + 1);
-      } else if (Array.isArray(result2)) {
-        result2 = await this.#iterateResolveAndCloneArray(result2, recursive, depth + 1);
-      }
-      clone.push(result2);
-    }));
-    return clone;
-  }
-  async #resolve(object, key) {
-    const value = object[key];
-    return typeof value == "function" ? await value(this.#modules, this.#ctx, object) : value;
+    return size;
   }
 };
 
 // src/index.tsx
-var Event2 = /* @__PURE__ */ ((Event3) => {
-  Event3["CALC"] = "antetype.workspace.calc";
-  return Event3;
-})(Event2 || {});
+var Event4 = /* @__PURE__ */ ((Event5) => {
+  Event5["CALC"] = "antetype.workspace.calc";
+  return Event5;
+})(Event4 || {});
 var AntetypeWorkspace = class {
   #module = null;
   #instance = null;
@@ -275,25 +361,14 @@ var AntetypeWorkspace = class {
       values[key] = this.#instance.calc(values[key]);
     }
   }
-  /**
-   * @TODO Should this be moved to the core?
-   */
-  async cloneDefinitions(event) {
-    if (event.detail.element === null) {
-      return;
-    }
-    event.detail.element = await this.#instance.cloneDefinitions(event.detail.element);
+  subtractWorkspace(event) {
+    event.detail.x -= this.#instance.getLeft();
+    event.detail.y -= this.#instance.getTop();
   }
   static subscriptions = {
     ["antetype.workspace.calc" /* CALC */]: "calc",
-    [l.CALC]: [
-      {
-        method: "cloneDefinitions",
-        priority: -255
-      }
-    ],
-    [Event.MODULES]: "register",
-    [l.DRAW]: [
+    [Event3.MODULES]: "register",
+    [c2.DRAW]: [
       {
         method: "draw",
         priority: 255
@@ -306,13 +381,15 @@ var AntetypeWorkspace = class {
         method: "restoreOrigin",
         priority: 255
       }
-    ]
+    ],
+    // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
+    [Event2.POSITION]: "subtractWorkspace"
   };
 };
 var EnAntetypeWorkspace = AntetypeWorkspace;
 var src_default = EnAntetypeWorkspace;
 export {
   AntetypeWorkspace,
-  Event2 as Event,
+  Event4 as Event,
   src_default as default
 };

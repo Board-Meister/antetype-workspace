@@ -1,7 +1,5 @@
 // src/module.tsx
-var cloned = Symbol("cloned");
 var Workspace = class {
-  #maxDepth = 50;
   #canvas;
   #modules;
   #ctx;
@@ -17,10 +15,26 @@ var Workspace = class {
   drawCanvas() {
     const ctx = this.#ctx;
     ctx.save();
-    ctx.fillStyle = "#FFF";
     const { height: height2, width: width2 } = this.#getSize();
+    ctx.clearRect(
+      -this.getLeft(),
+      -this.getTop(),
+      this.#canvas.width,
+      this.#canvas.height
+    );
+    ctx.fillStyle = "#FFF";
     ctx.fillRect(0, 0, width2, height2);
     ctx.restore();
+  }
+  getLeft() {
+    const ctx = this.#ctx;
+    const { width: width2 } = this.#getSize();
+    return (ctx.canvas.offsetWidth - width2) / 2;
+  }
+  getTop() {
+    const ctx = this.#ctx;
+    const { height: height2 } = this.#getSize();
+    return (ctx.canvas.offsetHeight - height2) / 2;
   }
   setOrigin() {
     this.#translationSet++;
@@ -29,8 +43,7 @@ var Workspace = class {
     }
     const ctx = this.#ctx;
     ctx.save();
-    const { height: height2, width: width2 } = this.#getSize();
-    ctx.translate((ctx.canvas.offsetWidth - width2) / 2, (ctx.canvas.offsetHeight - height2) / 2);
+    ctx.translate(this.getLeft(), this.getTop());
   }
   restore() {
     this.#translationSet--;
@@ -38,6 +51,13 @@ var Workspace = class {
       return;
     }
     this.#ctx.restore();
+  }
+  toRelative(value, direction = "x") {
+    const { height: height2, width: width2 } = this.#getSizeRelative();
+    if (direction === "x") {
+      return value / height2 * 100 + "h%";
+    }
+    return value / width2 * 100 + "w%";
   }
   calc(operation) {
     if (typeof operation == "number") {
@@ -83,9 +103,6 @@ var Workspace = class {
     }
     return this.#decimal(result);
   }
-  async cloneDefinitions(data) {
-    return await this.#iterateResolveAndCloneObject(data, /* @__PURE__ */ new WeakMap());
-  }
   #decimal(number, precision = 2) {
     return +number.toFixed(precision);
   }
@@ -118,65 +135,25 @@ var Workspace = class {
   }
   #getSizeRelative() {
     const settings = this.#getSettings(), { width: aWidth2, height: aHeight2 } = this.#getSize(), rWidth = settings.relative?.width ?? aWidth2, rHeight = settings.relative?.height ?? aHeight2;
-    const ratio = rWidth / rHeight;
-    let height2 = this.#ctx.canvas.offsetHeight, width2 = height2 * ratio;
-    if (width2 > this.#ctx.canvas.offsetWidth) {
-      width2 = this.#ctx.canvas.offsetWidth;
-      height2 = width2 * (rHeight / rWidth);
-    }
-    return {
-      width: width2,
-      height: height2
+    const size = {
+      width: settings.relative?.width ?? 0,
+      height: settings.relative?.height ?? 0
     };
-  }
-  #isObject(value) {
-    return typeof value === "object" && !Array.isArray(value) && value !== null;
-  }
-  async #iterateResolveAndCloneObject(object, recursive, depth = 0) {
-    if (recursive.has(object)) {
-      return recursive.get(object);
+    const height2 = this.#ctx.canvas.offsetHeight;
+    if (!size.width) {
+      const ratio = rWidth / rHeight;
+      size.width = height2 * ratio;
     }
-    if (object[cloned]) {
-      return object;
-    }
-    const clone = {};
-    recursive.set(object, clone);
-    clone[cloned] = true;
-    if (this.#maxDepth <= depth + 1) {
-      console.error("We've reach limit depth!", object);
-      throw new Error("limit reached");
-    }
-    await Promise.all(Object.keys(object).map(async (key) => {
-      let result2 = await this.#resolve(object, key);
-      if (this.#isObject(result2)) {
-        result2 = await this.#iterateResolveAndCloneObject(result2, recursive, depth + 1);
-      } else if (Array.isArray(result2)) {
-        result2 = await this.#iterateResolveAndCloneArray(result2, recursive, depth + 1);
+    if (!size.height) {
+      const width2 = size.width;
+      if (width2 > this.#ctx.canvas.offsetWidth) {
+        size.width = this.#ctx.canvas.offsetWidth;
+        size.height = width2 * (rHeight / rWidth);
+      } else {
+        size.height = height2;
       }
-      clone[key] = result2;
-    }));
-    return clone;
-  }
-  async #iterateResolveAndCloneArray(object, recursive, depth = 0) {
-    const clone = [];
-    if (this.#maxDepth <= depth + 1) {
-      console.error("We've reach limit depth!", object);
-      throw new Error("limit reached");
     }
-    await Promise.all(Object.keys(object).map(async (key) => {
-      let result2 = await this.#resolve(object, key);
-      if (this.#isObject(result2)) {
-        result2 = await this.#iterateResolveAndCloneObject(result2, recursive, depth + 1);
-      } else if (Array.isArray(result2)) {
-        result2 = await this.#iterateResolveAndCloneArray(result2, recursive, depth + 1);
-      }
-      clone.push(result2);
-    }));
-    return clone;
-  }
-  async #resolve(object, key) {
-    const value = object[key];
-    return typeof value == "function" ? await value(this.#modules, this.#ctx, object) : value;
+    return size;
   }
 };
 export {

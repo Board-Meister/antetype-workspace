@@ -6,9 +6,6 @@ import { RouteProps } from 'react-router-dom';
 interface DrawEvent {
 	element: IBaseDef;
 }
-interface CalcEvent {
-	element: IBaseDef | null;
-}
 declare type XValue = number;
 declare type YValue = XValue;
 interface IStart {
@@ -186,9 +183,13 @@ declare class Minstrel {
 	component<T>(module: Module$1, suffix: string, scope?: Record<string, any>): React$1.FC<T>;
 	asset(module: Module$1, suffix: string): string;
 }
+interface PositionEvent {
+	x: number;
+	y: number;
+}
 export interface IWorkspace {
+	toRelative: (value: number, direction?: "x" | "y") => string;
 	calc: (value: string) => number;
-	cloneDefinitions: (data: IBaseDef) => Promise<IBaseDef>;
 }
 export interface IWorkspaceSettings {
 	height?: number;
@@ -219,10 +220,7 @@ export declare class AntetypeWorkspace {
 	setOrigin(): void;
 	restoreOrigin(): void;
 	calc(event: CustomEvent<ICalcEvent>): void;
-	/**
-	 * @TODO Should this be moved to the core?
-	 */
-	cloneDefinitions(event: CustomEvent<CalcEvent>): Promise<void>;
+	subtractWorkspace(event: CustomEvent<PositionEvent>): void;
 	static subscriptions: Subscriptions;
 }
 declare const EnAntetypeWorkspace: IInjectable & ISubscriber;

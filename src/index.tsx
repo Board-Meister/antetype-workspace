@@ -1,7 +1,9 @@
-import type { DrawEvent, CalcEvent, IBaseDef } from "@boardmeister/antetype-core"
+import type { DrawEvent, IBaseDef } from "@boardmeister/antetype-core"
 import type { ModulesEvent } from "@boardmeister/antetype"
 import type { IInjectable, Module } from "@boardmeister/marshal"
 import type { Minstrel } from "@boardmeister/minstrel"
+import type { PositionEvent } from "@boardmeister/antetype-cursor"
+import { Event as AntetypeCursorEvent } from "@boardmeister/antetype-cursor"
 import type { Herald, ISubscriber, Subscriptions  } from "@boardmeister/herald"
 import Workspace from "@src/module";
 import { Event as AntetypeEvent } from "@boardmeister/antetype"
@@ -75,25 +77,13 @@ export class AntetypeWorkspace {
     }
   }
 
-  /**
-   * @TODO Should this be moved to the core?
-   */
-  async cloneDefinitions(event: CustomEvent<CalcEvent>): Promise<void> {
-    if (event.detail.element === null) {
-      return;
-    }
-
-    event.detail.element = await this.#instance!.cloneDefinitions(event.detail.element);
+  subtractWorkspace(event: CustomEvent<PositionEvent>): void {
+    event.detail.x -= this.#instance!.getLeft();
+    event.detail.y -= this.#instance!.getTop();
   }
 
   static subscriptions: Subscriptions = {
     [Event.CALC]: 'calc',
-    [AntetypeCoreEvent.CALC]: [
-      {
-        method: 'cloneDefinitions',
-        priority: -255,
-      },
-    ],
     [AntetypeEvent.MODULES]: 'register',
     [AntetypeCoreEvent.DRAW]: [
       {
@@ -109,6 +99,8 @@ export class AntetypeWorkspace {
         priority: 255,
       }
     ],
+    // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
+    [AntetypeCursorEvent.POSITION]: 'subtractWorkspace'
   }
 }
 

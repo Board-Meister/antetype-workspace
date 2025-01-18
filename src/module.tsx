@@ -1,9 +1,9 @@
-import type { ICore, IBaseDef } from "@boardmeister/antetype-core";
+import type { ICore } from "@boardmeister/antetype-core";
 import type { Modules } from "@boardmeister/antetype";
 
 export interface IWorkspace {
+  toRelative: (value: number, direction?: 'x'|'y') => string;
   calc: (value: string) => number;
-  cloneDefinitions: (data: IBaseDef) => Promise<IBaseDef>;
 }
 
 export interface IWorkspaceSettings {
@@ -15,12 +15,7 @@ export interface IWorkspaceSettings {
   }
 }
 
-declare type RecursiveWeakMap = WeakMap<Record<string, any>, Record<string, any>>;
-
-const cloned = Symbol('cloned');
-
 export default class Workspace implements IWorkspace {
-  #maxDepth = 50;
   #canvas: HTMLCanvasElement;
   #modules: Modules;
   #ctx: CanvasRenderingContext2D;
@@ -41,10 +36,28 @@ export default class Workspace implements IWorkspace {
   drawCanvas(): void {
     const ctx = this.#ctx;
     ctx.save();
-    ctx.fillStyle = "#FFF";
     const { height, width } = this.#getSize();
+    ctx.clearRect(
+      -this.getLeft(),
+      -this.getTop(),
+      this.#canvas.width,
+      this.#canvas.height,
+    );
+    ctx.fillStyle = "#FFF";
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
+  }
+
+  getLeft(): number {
+    const ctx = this.#ctx;
+    const { width } = this.#getSize();
+    return (ctx.canvas.offsetWidth - width) / 2;
+  }
+
+  getTop(): number {
+    const ctx = this.#ctx;
+    const { height } = this.#getSize();
+    return (ctx.canvas.offsetHeight - height) / 2;
   }
 
   setOrigin(): void {
@@ -54,8 +67,7 @@ export default class Workspace implements IWorkspace {
     }
     const ctx = this.#ctx;
     ctx.save();
-    const { height, width } = this.#getSize();
-    ctx.translate((ctx.canvas.offsetWidth - width) / 2, (ctx.canvas.offsetHeight - height) / 2);
+    ctx.translate(this.getLeft(), this.getTop());
   }
 
   restore(): void {
@@ -64,6 +76,15 @@ export default class Workspace implements IWorkspace {
       return;
     }
     this.#ctx.restore();
+  }
+
+  toRelative(value: number, direction: 'x'|'y' = 'x'): string {
+    const { height, width } = this.#getSizeRelative();
+    if (direction === 'x') {
+      return (value/height * 100) + 'h%';
+    }
+
+    return (value/width * 100) + 'w%';
   }
 
   calc(operation: any): number {
@@ -130,10 +151,6 @@ export default class Workspace implements IWorkspace {
     return this.#decimal(result);
   }
 
-  async cloneDefinitions(data: IBaseDef): Promise<IBaseDef> {
-    return await this.#iterateResolveAndCloneObject(data, new WeakMap()) as IBaseDef;
-  }
-
   #decimal(number: number, precision = 2): number {
     return +number.toFixed(precision);
   }
@@ -183,93 +200,28 @@ export default class Workspace implements IWorkspace {
       rHeight = settings.relative?.height ?? aHeight
     ;
 
-    const ratio = rWidth/rHeight;
-    let height = this.#ctx.canvas.offsetHeight,
-      width = height * ratio
-    ;
+    const size = {
+      width: settings.relative?.width ?? 0,
+      height: settings.relative?.height ?? 0,
+    }
+    const height = this.#ctx.canvas.offsetHeight;
 
-    if (width > this.#ctx.canvas.offsetWidth) {
-      width = this.#ctx.canvas.offsetWidth;
-      height = width * (rHeight/rWidth);
+    if (!size.width) {
+      const ratio = rWidth/rHeight;
+      size.width = height * ratio;
     }
 
-    return {
-      width,
-      height,
-    }
-  }
+    if (!size.height) {
+      const width = size.width;
 
-  #isObject(value: any): boolean {
-    return typeof value === 'object' && !Array.isArray(value) && value !== null;
-  }
-
-  async #iterateResolveAndCloneObject(
-    object: Record<string|symbol, any>,
-    recursive: RecursiveWeakMap,
-    depth = 0,
-  ): Promise<Record<string, any>> {
-    if (recursive.has(object)) {
-      return recursive.get(object)!;
-    }
-
-    if (object[cloned]) {
-      return object;
-    }
-
-    const clone = {} as Record<string|symbol, any>;
-    recursive.set(object, clone);
-    clone[cloned] = true;
-    if (this.#maxDepth <= depth + 1) {
-      console.error('We\'ve reach limit depth!', object);
-      throw new Error('limit reached');
-    }
-
-    await Promise.all(Object.keys(object).map(async key => {
-      let result = await this.#resolve(object, key);
-
-      if (this.#isObject(result)) {
-        result = await this.#iterateResolveAndCloneObject(result, recursive, depth + 1);
-      } else if (Array.isArray(result)) {
-        result = await this.#iterateResolveAndCloneArray(result, recursive, depth + 1);
+      if (width > this.#ctx.canvas.offsetWidth) {
+        size.width = this.#ctx.canvas.offsetWidth;
+        size.height = width * (rHeight/rWidth);
+      } else {
+        size.height = height;
       }
-
-      clone[key] = result;
-    }));
-
-    return clone;
-  }
-
-  async #iterateResolveAndCloneArray(
-    object: any[],
-    recursive: RecursiveWeakMap,
-    depth = 0,
-  ): Promise<any[]> {
-    const clone = [] as any[];
-    if (this.#maxDepth <= depth + 1) {
-      console.error('We\'ve reach limit depth!', object);
-      throw new Error('limit reached');
     }
 
-    await Promise.all(Object.keys(object).map(async key => {
-      let result = await this.#resolve(object, key);
-
-      if (this.#isObject(result)) {
-        result = await this.#iterateResolveAndCloneObject(result, recursive, depth + 1);
-      } else if (Array.isArray(result)) {
-        result = await this.#iterateResolveAndCloneArray(result, recursive, depth + 1);
-      }
-
-      clone.push(result);
-    }));
-
-    return clone;
-  }
-
-  async #resolve(object: Record<string, any>, key: string): Promise<any> {
-    const value = object[key];
-    return typeof value == 'function'
-      ? await value(this.#modules, this.#ctx, object)
-      : value
-    ;
+    return size;
   }
 }
