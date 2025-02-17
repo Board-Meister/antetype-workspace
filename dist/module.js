@@ -12,16 +12,19 @@ var Workspace = class {
     this.#modules = modules;
     this.#ctx = this.#canvas.getContext("2d");
   }
-  drawCanvas() {
+  clearCanvas() {
     const ctx = this.#ctx;
-    ctx.save();
-    const { height: height2, width: width2 } = this.#getSize();
     ctx.clearRect(
       -this.getLeft(),
       -this.getTop(),
       this.#canvas.width,
       this.#canvas.height
     );
+  }
+  drawWorkspace() {
+    const ctx = this.#ctx;
+    ctx.save();
+    const { height: height2, width: width2 } = this.#getSize();
     ctx.fillStyle = "#FFF";
     ctx.fillRect(0, 0, width2, height2);
     ctx.restore();
@@ -52,18 +55,21 @@ var Workspace = class {
     }
     this.#ctx.restore();
   }
-  toRelative(value, direction = "x") {
+  toRelative(value, direction = "x", precision = 3) {
     const { height: height2, width: width2 } = this.#getSizeRelative();
+    let result2 = value / height2 * 100, suffix = "h%";
     if (direction === "x") {
-      return value / height2 * 100 + "h%";
+      result2 = value / width2 * 100;
+      suffix = "w%";
     }
-    return value / width2 * 100 + "w%";
+    return String(Math.round(result2 * 10 ** precision) / 10 ** precision) + suffix;
   }
-  calc(operation) {
+  calc(operation, quiet = false) {
     if (typeof operation == "number") {
       return operation;
     }
     if (typeof operation != "string" || operation.match(/[^-()\d/*+.pxw%hv ]/g)) {
+      console.warn("Calculation contains invalid characters!", operation);
       return NaN;
     }
     const convertUnitToNumber = (unit, suffixLen = 2) => Number(unit.slice(0, unit.length - suffixLen));
@@ -97,7 +103,13 @@ var Workspace = class {
       }
       calculation += String(result2);
     });
-    const result = eval(calculation);
+    let result;
+    try {
+      result = eval(calculation);
+    } catch (e) {
+      result = void 0;
+      if (!quiet) console.warn("Invalid calculation! Tried to calculate from", calculation);
+    }
     if (result == void 0) {
       return NaN;
     }

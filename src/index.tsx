@@ -52,7 +52,8 @@ export class AntetypeWorkspace {
     }
     const { element } = event.detail;
     const typeToAction: Record<string, (element: IBaseDef) => void> = {
-      clear: this.#instance.drawCanvas.bind(this.#instance)
+      clear: this.#instance.clearCanvas.bind(this.#instance),
+      workspace: this.#instance.drawWorkspace.bind(this.#instance),
     };
 
     const el = typeToAction[element.type]
@@ -88,7 +89,7 @@ export class AntetypeWorkspace {
     [AntetypeCoreEvent.DRAW]: [
       {
         method: 'draw',
-        priority: 255,
+        priority: 1,
       },
       {
         method: 'setOrigin',
@@ -105,5 +106,5 @@ export class AntetypeWorkspace {
 }
 
 export * from "@src/module";
-const EnAntetypeWorkspace: IInjectable&ISubscriber = AntetypeWorkspace;
+const EnAntetypeWorkspace: IInjectable<IInjected>&ISubscriber = AntetypeWorkspace;
 export default EnAntetypeWorkspace;

@@ -4,6 +4,7 @@ import type { Modules } from "@boardmeister/antetype";
 export interface IWorkspace {
   toRelative: (value: number, direction?: 'x'|'y') => string;
   calc: (value: string) => number;
+  drawWorkspace: () => void;
 }
 
 export interface IWorkspaceSettings {
@@ -33,16 +34,20 @@ export default class Workspace implements IWorkspace {
     this.#ctx = this.#canvas.getContext('2d')!;
   }
 
-  drawCanvas(): void {
+  clearCanvas(): void {
     const ctx = this.#ctx;
-    ctx.save();
-    const { height, width } = this.#getSize();
     ctx.clearRect(
       -this.getLeft(),
       -this.getTop(),
       this.#canvas.width,
       this.#canvas.height,
     );
+  }
+
+  drawWorkspace(): void {
+    const ctx = this.#ctx;
+    ctx.save();
+    const { height, width } = this.#getSize();
     ctx.fillStyle = "#FFF";
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
@@ -78,21 +83,26 @@ export default class Workspace implements IWorkspace {
     this.#ctx.restore();
   }
 
-  toRelative(value: number, direction: 'x'|'y' = 'x'): string {
+  toRelative(value: number, direction: 'x'|'y' = 'x', precision = 3): string {
     const { height, width } = this.#getSizeRelative();
+    let result = (value/height * 100),
+      suffix = 'h%'
+    ;
     if (direction === 'x') {
-      return (value/height * 100) + 'h%';
+      result = (value/width * 100);
+      suffix = 'w%';
     }
 
-    return (value/width * 100) + 'w%';
+    return String(Math.round(result * 10**precision) / 10**precision) + suffix;
   }
 
-  calc(operation: any): number {
+  calc(operation: any, quiet = false): number {
     if (typeof operation == 'number') {
       return operation;
     }
 
     if (typeof operation != 'string' || operation.match(/[^-()\d/*+.pxw%hv ]/g)) {
+      console.warn('Calculation contains invalid characters!', operation)
       return NaN;
     }
 
@@ -134,7 +144,13 @@ export default class Workspace implements IWorkspace {
       calculation += String(result);
     });
 
-    const result = eval(calculation);
+    let result;
+    try {
+      result = eval(calculation);
+    } catch (e) {
+      result = undefined;
+      if (!quiet) console.warn('Invalid calculation! Tried to calculate from', calculation)
+    }
 
     if (result == undefined) {
       return NaN;
@@ -145,8 +161,8 @@ export default class Workspace implements IWorkspace {
       to be a float with precision of 2. This allows us to keep a consistent state between layers even if
       results are later used to preform other calculations.
 
-      Also, we don't care about the issue of wrong round (1.255 to 1.25) as this is so small that user won't be
-      able to see the difference.
+      Also, we don't care about the incorrect rounding (1.255 to 1.25) as this is small enough that user won't be
+      able to tell the difference.
      */
     return this.#decimal(result);
   }
