@@ -1,16 +1,113 @@
 // src/module.tsx
+var BlobTypes = /* @__PURE__ */ ((BlobTypes2) => {
+  BlobTypes2["WEBP"] = "image/webp";
+  BlobTypes2["PNG"] = "image/png";
+  BlobTypes2["JPG"] = "image/jpeg";
+  return BlobTypes2;
+})(BlobTypes || {});
 var Workspace = class {
   #canvas;
   #modules;
   #ctx;
   #translationSet = 0;
+  #drawWorkspace = true;
+  #quality = 1;
   constructor(canvas, modules) {
     if (!canvas) {
       throw new Error("[Antetype Workspace] Provided canvas is empty");
     }
     this.#canvas = canvas;
+    this.#updateCanvas();
     this.#modules = modules;
     this.#ctx = this.#canvas.getContext("2d");
+  }
+  #updateCanvas() {
+    const offWidth = this.#canvas.offsetWidth, offHeight = this.#canvas.offsetHeight;
+    this.#canvas.setAttribute("width", String(offWidth * this.#quality));
+    this.#canvas.setAttribute("height", String(offHeight * this.#quality));
+  }
+  setQuality(quality) {
+    if (isNaN(quality)) {
+      throw new Error("Workspace quality must be a number");
+    }
+    this.#quality = Number(quality);
+    this.#updateCanvas();
+  }
+  getQuality() {
+    return this.#quality;
+  }
+  scale(value) {
+    return value * this.#quality;
+  }
+  typeToExt(ext) {
+    if (ext == "image/png" /* PNG */.toString()) {
+      return "png";
+    }
+    if (ext == "image/jpeg" /* JPG */.toString()) {
+      return "jpg";
+    }
+    return "webp";
+  }
+  async download(exportArguments) {
+    const link = document.createElement("a");
+    link.download = exportArguments.filename + "." + this.typeToExt(exportArguments.type);
+    const url = URL.createObjectURL(await this.export(exportArguments));
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+  /**
+   * DPI calculation is made against A4 format
+   */
+  #updateQualityBasedOnDpi(dpi) {
+    const inch = 25.4;
+    const a4HeightInInched = 297 / inch;
+    const pixels = dpi * a4HeightInInched;
+    const absoluteHeight = this.getSize().height / this.#quality;
+    this.setQuality(pixels / absoluteHeight);
+  }
+  async export({ type = "image/webp" /* WEBP */, quality = 0.9, dpi = 300 }) {
+    const view = this.#modules.core.view;
+    const shouldDrawWorkspaceInitial = this.#drawWorkspace;
+    try {
+      this.shouldDrawWorkspace(false);
+      this.#updateQualityBasedOnDpi(dpi);
+      await view.recalculate();
+      view.redraw();
+      const blob = await this.#canvasToBlob(type, quality);
+      if (!blob) {
+        throw new Error("Couldn't export canvas workspace");
+      }
+      return blob;
+    } finally {
+      this.shouldDrawWorkspace(shouldDrawWorkspaceInitial);
+      this.setQuality(1);
+      await view.recalculate();
+      view.redraw();
+    }
+  }
+  #canvasToBlob(type = "image/webp" /* WEBP */, quality = 0.9) {
+    const { width: width2, height: height2 } = this.getSize();
+    const top = this.getTop();
+    const left = this.getLeft();
+    const image = this.#ctx.getImageData(left, top, width2, height2), canvas1 = document.createElement("canvas");
+    canvas1.width = width2;
+    canvas1.height = height2;
+    const ctx1 = canvas1.getContext("2d");
+    ctx1.putImageData(image, 0, 0);
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        resolve(null);
+      }, 3e4);
+      canvas1.toBlob(
+        (blob) => {
+          clearTimeout(timeout);
+          resolve(blob);
+        },
+        type,
+        quality
+      );
+    });
   }
   clearCanvas() {
     const ctx = this.#ctx;
@@ -21,23 +118,29 @@ var Workspace = class {
       this.#canvas.height
     );
   }
+  shouldDrawWorkspace(toggle) {
+    this.#drawWorkspace = toggle;
+  }
   drawWorkspace() {
+    if (!this.#drawWorkspace) {
+      return;
+    }
     const ctx = this.#ctx;
     ctx.save();
-    const { height: height2, width: width2 } = this.#getSize();
+    const { height: height2, width: width2 } = this.getSize();
     ctx.fillStyle = "#FFF";
     ctx.fillRect(0, 0, width2, height2);
     ctx.restore();
   }
   getLeft() {
     const ctx = this.#ctx;
-    const { width: width2 } = this.#getSize();
-    return (ctx.canvas.offsetWidth - width2) / 2;
+    const { width: width2 } = this.getSize();
+    return (Number(ctx.canvas.getAttribute("width")) - width2) / 2;
   }
   getTop() {
     const ctx = this.#ctx;
-    const { height: height2 } = this.#getSize();
-    return (ctx.canvas.offsetHeight - height2) / 2;
+    const { height: height2 } = this.getSize();
+    return (Number(ctx.canvas.getAttribute("height")) - height2) / 2;
   }
   setOrigin() {
     this.#translationSet++;
@@ -66,14 +169,14 @@ var Workspace = class {
   }
   calc(operation, quiet = false) {
     if (typeof operation == "number") {
-      return operation;
+      return operation * this.#quality;
     }
     if (typeof operation != "string" || operation.match(/[^-()\d/*+.pxw%hv ]/g)) {
       console.warn("Calculation contains invalid characters!", operation);
       return NaN;
     }
     const convertUnitToNumber = (unit, suffixLen = 2) => Number(unit.slice(0, unit.length - suffixLen));
-    const { height: aHeight, width: aWidth } = this.#getSize();
+    const { height: aHeight, width: aWidth } = this.getSize();
     const { height, width } = this.#getSizeRelative();
     const unitsTranslator = {
       "px": (number) => {
@@ -133,7 +236,7 @@ var Workspace = class {
     }
     return set;
   }
-  #getSize() {
+  getSize() {
     const { width: aWidth2, height: aHeight2 } = this.#getSettings(), ratio = aWidth2 / aHeight2;
     let height2 = this.#ctx.canvas.offsetHeight, width2 = height2 * ratio;
     if (width2 > this.#ctx.canvas.offsetWidth) {
@@ -141,12 +244,12 @@ var Workspace = class {
       height2 = width2 * (height2 / width2);
     }
     return {
-      width: width2,
-      height: height2
+      width: width2 * this.#quality,
+      height: height2 * this.#quality
     };
   }
   #getSizeRelative() {
-    const settings = this.#getSettings(), { width: aWidth2, height: aHeight2 } = this.#getSize(), rWidth = settings.relative?.width ?? aWidth2, rHeight = settings.relative?.height ?? aHeight2;
+    const settings = this.#getSettings(), { width: aWidth2, height: aHeight2 } = this.getSize(), rWidth = settings.relative?.width ?? aWidth2, rHeight = settings.relative?.height ?? aHeight2;
     const size = {
       width: settings.relative?.width ?? 0,
       height: settings.relative?.height ?? 0
@@ -154,20 +257,22 @@ var Workspace = class {
     const height2 = this.#ctx.canvas.offsetHeight;
     if (!size.width) {
       const ratio = rWidth / rHeight;
-      size.width = height2 * ratio;
+      size.width = height2 * ratio * this.#quality;
     }
     if (!size.height) {
       const width2 = size.width;
+      size.height = height2 * this.#quality;
       if (width2 > this.#ctx.canvas.offsetWidth) {
-        size.width = this.#ctx.canvas.offsetWidth;
         size.height = width2 * (rHeight / rWidth);
-      } else {
-        size.height = height2;
       }
     }
-    return size;
+    return {
+      width: size.width,
+      height: size.height
+    };
   }
 };
 export {
+  BlobTypes,
   Workspace as default
 };
