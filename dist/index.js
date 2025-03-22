@@ -107,8 +107,6 @@ var AntetypeWorkspace = class {
     }
   }
   subtractWorkspace(event) {
-    event.detail.x = this.#instance.scale(event.detail.x);
-    event.detail.y = this.#instance.scale(event.detail.y);
     event.detail.x -= this.#instance.getLeft();
     event.detail.y -= this.#instance.getTop();
   }
