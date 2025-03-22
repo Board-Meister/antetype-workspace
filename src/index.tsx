@@ -1,4 +1,4 @@
-import type { DrawEvent, IBaseDef, ModulesEvent, Modules } from "@boardmeister/antetype-core"
+import type { DrawEvent, IBaseDef, ModulesEvent, Modules, SettingsEvent } from "@boardmeister/antetype-core"
 import type { IInjectable } from "@boardmeister/marshal"
 import type { Minstrel } from "@boardmeister/minstrel"
 import type { PositionEvent } from "@boardmeister/antetype-cursor"
@@ -48,6 +48,7 @@ export class AntetypeWorkspace {
     if (!this.#instance) {
       return;
     }
+
     const { element } = event.detail;
     const typeToAction: Record<string, (element: IBaseDef) => void> = {
       clear: this.#instance.clearCanvas.bind(this.#instance),
@@ -83,6 +84,10 @@ export class AntetypeWorkspace {
     event.detail.y -= this.#instance!.getTop();
   }
 
+  defineSettings(e: SettingsEvent): void {
+    e.detail.settings.push(this.#instance!.getSettingsDefinition());
+  }
+
   static subscriptions: Subscriptions = {
     [Event.CALC]: 'calc',
     [AntetypeCoreEvent.MODULES]: 'register',
@@ -103,6 +108,7 @@ export class AntetypeWorkspace {
     // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
     [AntetypeCursorEvent.POSITION]: 'subtractWorkspace',
     [AntetypeCursorEvent.CALC]: 'calc',
+    [AntetypeCoreEvent.SETTINGS]: 'defineSettings',
   }
 }
 

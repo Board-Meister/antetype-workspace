@@ -12,6 +12,11 @@ var Workspace = class {
   #translationSet = 0;
   #drawWorkspace = true;
   #quality = 1;
+  #scale = 1;
+  #translate = {
+    left: 0,
+    top: 0
+  };
   constructor(canvas, modules) {
     if (!canvas) {
       throw new Error("[Antetype Workspace] Provided canvas is empty");
@@ -26,6 +31,15 @@ var Workspace = class {
     this.#canvas.setAttribute("width", String(offWidth * this.#quality));
     this.#canvas.setAttribute("height", String(offHeight * this.#quality));
   }
+  setTranslateLeft(left) {
+    this.#translate.left = left;
+  }
+  setTranslateTop(top) {
+    this.#translate.top = top;
+  }
+  getTranslate() {
+    return this.#translate;
+  }
   setQuality(quality) {
     if (isNaN(quality)) {
       throw new Error("Workspace quality must be a number");
@@ -36,8 +50,17 @@ var Workspace = class {
   getQuality() {
     return this.#quality;
   }
+  getScale() {
+    return this.#scale;
+  }
+  setScale(scale) {
+    if (isNaN(scale)) {
+      throw new Error("Workspace scale must be a number");
+    }
+    this.#scale = scale;
+  }
   scale(value) {
-    return value * this.#quality;
+    return value * this.#quality * this.#scale;
   }
   typeToExt(ext) {
     if (ext == "image/png" /* PNG */.toString()) {
@@ -135,12 +158,12 @@ var Workspace = class {
   getLeft() {
     const ctx = this.#ctx;
     const { width: width2 } = this.getSize();
-    return (Number(ctx.canvas.getAttribute("width")) - width2) / 2;
+    return (Number(ctx.canvas.getAttribute("width")) - width2) / 2 + this.getTranslate().left;
   }
   getTop() {
     const ctx = this.#ctx;
     const { height: height2 } = this.getSize();
-    return (Number(ctx.canvas.getAttribute("height")) - height2) / 2;
+    return (Number(ctx.canvas.getAttribute("height")) - height2) / 2 + this.getTranslate().top;
   }
   setOrigin() {
     this.#translationSet++;
@@ -169,7 +192,7 @@ var Workspace = class {
   }
   calc(operation, quiet = false) {
     if (typeof operation == "number") {
-      return operation * this.#quality;
+      return this.scale(operation);
     }
     if (typeof operation != "string" || operation.match(/[^-()\d/*+.pxw%hv ]/g)) {
       console.warn("Calculation contains invalid characters!", operation);
@@ -227,12 +250,12 @@ var Workspace = class {
   #getSettings() {
     const height2 = this.#ctx.canvas.offsetHeight;
     const set = this.#getSystem().setting.get("workspace") ?? {};
-    if (typeof set.height != "number") {
+    if (isNaN(Number(set.height))) {
       set.height = height2;
     }
-    if (typeof set.width != "number") {
+    if (isNaN(Number(set.width))) {
       const a4Ratio = 0.707070707;
-      set.width = height2 * a4Ratio;
+      set.width = Math.round(height2 * a4Ratio);
     }
     return set;
   }
@@ -244,8 +267,8 @@ var Workspace = class {
       height2 = width2 * (height2 / width2);
     }
     return {
-      width: width2 * this.#quality,
-      height: height2 * this.#quality
+      width: this.scale(width2),
+      height: this.scale(height2)
     };
   }
   #getSizeRelative() {
@@ -257,11 +280,11 @@ var Workspace = class {
     const height2 = this.#ctx.canvas.offsetHeight;
     if (!size.width) {
       const ratio = rWidth / rHeight;
-      size.width = height2 * ratio * this.#quality;
+      size.width = this.scale(height2 * ratio);
     }
     if (!size.height) {
       const width2 = size.width;
-      size.height = height2 * this.#quality;
+      size.height = this.scale(height2);
       if (width2 > this.#ctx.canvas.offsetWidth) {
         size.height = width2 * (rHeight / rWidth);
       }
@@ -269,6 +292,39 @@ var Workspace = class {
     return {
       width: size.width,
       height: size.height
+    };
+  }
+  getSettingsDefinition() {
+    const settings = this.#getSettings();
+    return {
+      details: {
+        label: "Workspace"
+      },
+      name: "workspace",
+      tabs: [
+        {
+          label: "General",
+          fields: [
+            [{
+              label: "Dimensions",
+              type: "container",
+              fields: [
+                [{
+                  label: "Height",
+                  type: "number",
+                  name: "height",
+                  value: settings.height
+                }, {
+                  label: "Width",
+                  type: "number",
+                  name: "width",
+                  value: settings.width
+                }]
+              ]
+            }]
+          ]
+        }
+      ]
     };
   }
 };

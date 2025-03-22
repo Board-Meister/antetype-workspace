@@ -1,22 +1,14 @@
 // ../antetype-cursor/dist/index.js
+var s = ((t) => (t.INIT = "antetype.init", t.CLOSE = "antetype.close", t.DRAW = "antetype.draw", t.CALC = "antetype.calc", t.RECALC_FINISHED = "antetype.recalc.finished", t.MODULES = "antetype.modules", t.SETTINGS = "antetype.settings.definition", t))(s || {});
 var Event = /* @__PURE__ */ ((Event22) => {
-  Event22["INIT"] = "antetype.init";
-  Event22["CLOSE"] = "antetype.close";
-  Event22["DRAW"] = "antetype.draw";
-  Event22["CALC"] = "antetype.calc";
-  Event22["RECALC_FINISHED"] = "antetype.recalc.finished";
-  Event22["MODULES"] = "antetype.modules";
+  Event22["CALC"] = "antetype.cursor.calc";
+  Event22["POSITION"] = "antetype.cursor.position";
+  Event22["DOWN"] = "antetype.cursor.on.down";
+  Event22["UP"] = "antetype.cursor.on.up";
+  Event22["MOVE"] = "antetype.cursor.on.move";
+  Event22["SLIP"] = "antetype.cursor.on.slip";
   return Event22;
 })(Event || {});
-var Event2 = /* @__PURE__ */ ((Event32) => {
-  Event32["CALC"] = "antetype.cursor.calc";
-  Event32["POSITION"] = "antetype.cursor.position";
-  Event32["DOWN"] = "antetype.cursor.on.down";
-  Event32["UP"] = "antetype.cursor.on.up";
-  Event32["MOVE"] = "antetype.cursor.on.move";
-  Event32["SLIP"] = "antetype.cursor.on.slip";
-  return Event32;
-})(Event2 || {});
 var AntetypeCursor = class {
   #injected;
   #module = null;
@@ -55,27 +47,19 @@ var AntetypeCursor = class {
     }
   }
   static subscriptions = {
-    [Event.MODULES]: "register",
-    [Event.DRAW]: "draw"
+    [s.MODULES]: "register",
+    [s.DRAW]: "draw"
   };
 };
 
 // ../antetype-core/dist/index.js
-var Event3 = /* @__PURE__ */ ((Event22) => {
-  Event22["INIT"] = "antetype.init";
-  Event22["CLOSE"] = "antetype.close";
-  Event22["DRAW"] = "antetype.draw";
-  Event22["CALC"] = "antetype.calc";
-  Event22["RECALC_FINISHED"] = "antetype.recalc.finished";
-  Event22["MODULES"] = "antetype.modules";
-  return Event22;
-})(Event3 || {});
+var s2 = ((t) => (t.INIT = "antetype.init", t.CLOSE = "antetype.close", t.DRAW = "antetype.draw", t.CALC = "antetype.calc", t.RECALC_FINISHED = "antetype.recalc.finished", t.MODULES = "antetype.modules", t.SETTINGS = "antetype.settings.definition", t))(s2 || {});
 
 // src/index.tsx
-var Event4 = /* @__PURE__ */ ((Event5) => {
-  Event5["CALC"] = "antetype.workspace.calc";
-  return Event5;
-})(Event4 || {});
+var Event2 = /* @__PURE__ */ ((Event3) => {
+  Event3["CALC"] = "antetype.workspace.calc";
+  return Event3;
+})(Event2 || {});
 var AntetypeWorkspace = class {
   #module = null;
   #instance = null;
@@ -128,10 +112,13 @@ var AntetypeWorkspace = class {
     event.detail.x -= this.#instance.getLeft();
     event.detail.y -= this.#instance.getTop();
   }
+  defineSettings(e) {
+    e.detail.settings.push(this.#instance.getSettingsDefinition());
+  }
   static subscriptions = {
     ["antetype.workspace.calc" /* CALC */]: "calc",
-    [Event3.MODULES]: "register",
-    [Event3.DRAW]: [
+    [s2.MODULES]: "register",
+    [s2.DRAW]: [
       {
         method: "draw",
         priority: 1
@@ -146,14 +133,15 @@ var AntetypeWorkspace = class {
       }
     ],
     // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
-    [Event2.POSITION]: "subtractWorkspace",
-    [Event2.CALC]: "calc"
+    [Event.POSITION]: "subtractWorkspace",
+    [Event.CALC]: "calc",
+    [s2.SETTINGS]: "defineSettings"
   };
 };
 var EnAntetypeWorkspace = AntetypeWorkspace;
 var src_default = EnAntetypeWorkspace;
 export {
   AntetypeWorkspace,
-  Event4 as Event,
+  Event2 as Event,
   src_default as default
 };

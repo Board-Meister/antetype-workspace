@@ -1,4 +1,4 @@
-import type { ICore, Modules } from "@boardmeister/antetype-core";
+import type { ICore, Modules, ISettingsDefinition } from "@boardmeister/antetype-core";
 
 export interface IWorkspace {
   toRelative: (value: number, direction?: 'x'|'y') => string;
@@ -9,8 +9,13 @@ export interface IWorkspace {
   scale: (value: number) => number;
   getQuality: () => number;
   setQuality: (quality: any) => void;
+  getScale: () => number;
+  setScale: (scale: any) => void;
   getSize: () => IWorkspaceSize;
   shouldDrawWorkspace: (toggle: boolean) => void;
+  setTranslateLeft: (left: number) => void;
+  setTranslateTop: (top: number) => void;
+  getTranslate: () => ITranslate;
 }
 
 export interface IWorkspaceSize {
@@ -43,6 +48,11 @@ export interface IDownloadSettings extends IExportSettings {
   filename: string;
 }
 
+export interface ITranslate {
+  left: number;
+  top: number;
+}
+
 export default class Workspace implements IWorkspace {
   #canvas: HTMLCanvasElement;
   #modules: Modules;
@@ -50,6 +60,11 @@ export default class Workspace implements IWorkspace {
   #translationSet: number = 0;
   #drawWorkspace = true;
   #quality = 1;
+  #scale = 1;
+  #translate: ITranslate = {
+    left: 0,
+    top: 0,
+  }
 
   constructor(
     canvas: HTMLCanvasElement|null,
@@ -72,6 +87,18 @@ export default class Workspace implements IWorkspace {
     this.#canvas.setAttribute('height', String(offHeight * this.#quality));
   }
 
+  setTranslateLeft(left: number): void {
+    this.#translate.left = left;
+  }
+
+  setTranslateTop(top: number): void {
+    this.#translate.top = top;
+  }
+
+  getTranslate(): ITranslate {
+    return this.#translate;
+  }
+
   setQuality(quality: any): void {
     if (isNaN(quality)) {
       throw new Error('Workspace quality must be a number');
@@ -85,8 +112,20 @@ export default class Workspace implements IWorkspace {
     return this.#quality;
   }
 
+  getScale(): number {
+    return this.#scale;
+  }
+
+  setScale(scale: any): void {
+    if (isNaN(scale)) {
+      throw new Error('Workspace scale must be a number');
+    }
+
+    this.#scale = scale;
+  }
+
   scale(value: number): number {
-    return value * this.#quality;
+    return value * this.#quality * this.#scale;
   }
 
   typeToExt(ext?:string): string {
@@ -203,13 +242,13 @@ export default class Workspace implements IWorkspace {
   getLeft(): number {
     const ctx = this.#ctx;
     const { width } = this.getSize();
-    return (Number(ctx.canvas.getAttribute('width')!) - width) / 2;
+    return ((Number(ctx.canvas.getAttribute('width')!) - width) / 2) + this.getTranslate().left;
   }
 
   getTop(): number {
     const ctx = this.#ctx;
     const { height } = this.getSize();
-    return (Number(ctx.canvas.getAttribute('height')!) - height) / 2;
+    return ((Number(ctx.canvas.getAttribute('height')!) - height) / 2) + this.getTranslate().top;
   }
 
   setOrigin(): void {
@@ -245,7 +284,7 @@ export default class Workspace implements IWorkspace {
 
   calc(operation: any, quiet = false): number {
     if (typeof operation == 'number') {
-      return operation * this.#quality;
+      return this.scale(operation);
     }
 
     if (typeof operation != 'string' || operation.match(/[^-()\d/*+.pxw%hv ]/g)) {
@@ -325,13 +364,13 @@ export default class Workspace implements IWorkspace {
   #getSettings(): IWorkspaceSettings {
     const height = this.#ctx.canvas.offsetHeight;
     const set = (this.#getSystem().setting.get('workspace') ?? {}) as IWorkspaceSettings;
-    if (typeof set.height != 'number') {
+    if (isNaN(Number(set.height))) {
       set.height = height;
     }
 
-    if (typeof set.width != 'number') {
+    if (isNaN(Number(set.width))) {
       const a4Ratio = 0.707070707; // Default A4
-      set.width = height * a4Ratio;
+      set.width = Math.round(height * a4Ratio);
     }
 
     return set;
@@ -351,8 +390,8 @@ export default class Workspace implements IWorkspace {
     }
 
     return {
-      width: width * this.#quality,
-      height: height * this.#quality,
+      width: this.scale(width),
+      height: this.scale(height),
     }
   }
 
@@ -371,21 +410,55 @@ export default class Workspace implements IWorkspace {
 
     if (!size.width) {
       const ratio = rWidth/rHeight;
-      size.width = height * ratio * this.#quality;
+      size.width = this.scale(height * ratio);
     }
 
     if (!size.height) {
       const width = size.width;
 
-      size.height = height * this.#quality;
+      size.height = this.scale(height);
       if (width > this.#ctx.canvas.offsetWidth) {
         size.height = width * (rHeight/rWidth);
       }
     }
 
     return {
-      width: size.width ,
+      width: size.width,
       height: size.height,
+    };
+  }
+
+  getSettingsDefinition(): ISettingsDefinition {
+    const settings = this.#getSettings();
+    return {
+      details: {
+        label: 'Workspace',
+      },
+      name: 'workspace',
+      tabs: [
+        {
+          label: 'General',
+          fields: [
+            [{
+              label: 'Dimensions',
+              type: 'container',
+              fields: [
+                [{
+                  label: 'Height',
+                  type: 'number',
+                  name: 'height',
+                  value: settings.height,
+                }, {
+                  label: 'Width',
+                  type: 'number',
+                  name: 'width',
+                  value: settings.width,
+                }]
+              ]
+            }]
+          ]
+        }
+      ]
     };
   }
 }

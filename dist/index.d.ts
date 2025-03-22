@@ -11,6 +11,39 @@ declare type Module$1 = object;
 interface DrawEvent {
 	element: IBaseDef;
 }
+interface ISettingsDefinitionFieldGeneric {
+	label: string;
+	type: string;
+}
+type SettingsDefinitionField = ISettingsDefinitionFieldInput | ISettingsDefinitionFieldContainer | ISettingsDefinitionFieldGeneric;
+interface ISettingsDefinitionFieldContainer extends ISettingsDefinitionFieldGeneric {
+	type: "container";
+	fields: SettingsDefinitionField[][];
+	collapsable?: boolean;
+}
+type ISettingsInputValue = string | number | string[] | number[] | Record<string, any> | Record<string, any>[] | undefined;
+interface ISettingsDefinitionFieldInput extends ISettingsDefinitionFieldGeneric {
+	name: string;
+	value: ISettingsInputValue;
+}
+interface ISettingsDefinitionTab {
+	label: string;
+	icon?: string;
+	fields: SettingsDefinitionField[][];
+}
+interface ISettingsDefinition {
+	details: {
+		label: string;
+		icon?: string;
+	};
+	name: string;
+	tabs: ISettingsDefinitionTab[];
+}
+interface ISettingEvent {
+	settings: ISettingsDefinition[];
+	additional: Record<string, any>;
+}
+type SettingsEvent = CustomEvent<ISettingEvent>;
 declare type XValue = number;
 declare type YValue = XValue;
 interface IStart {
@@ -197,8 +230,13 @@ export interface IWorkspace {
 	scale: (value: number) => number;
 	getQuality: () => number;
 	setQuality: (quality: any) => void;
+	getScale: () => number;
+	setScale: (scale: any) => void;
 	getSize: () => IWorkspaceSize;
 	shouldDrawWorkspace: (toggle: boolean) => void;
+	setTranslateLeft: (left: number) => void;
+	setTranslateTop: (top: number) => void;
+	getTranslate: () => ITranslate;
 }
 export interface IWorkspaceSize {
 	width: number;
@@ -225,6 +263,10 @@ export interface IExportSettings {
 export interface IDownloadSettings extends IExportSettings {
 	filename: string;
 }
+export interface ITranslate {
+	left: number;
+	top: number;
+}
 export interface IInjected extends Record<string, object> {
 	minstrel: Minstrel;
 	herald: Herald;
@@ -247,6 +289,7 @@ export declare class AntetypeWorkspace {
 	restoreOrigin(): void;
 	calc(event: CustomEvent<ICalcEvent>): void;
 	subtractWorkspace(event: CustomEvent<PositionEvent>): void;
+	defineSettings(e: SettingsEvent): void;
 	static subscriptions: Subscriptions;
 }
 declare const EnAntetypeWorkspace: IInjectable<IInjected> & ISubscriber;
