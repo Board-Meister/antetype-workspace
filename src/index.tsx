@@ -2,6 +2,7 @@ import type { DrawEvent, IBaseDef, ModulesEvent, Modules, SettingsEvent } from "
 import type { IInjectable } from "@boardmeister/marshal"
 import type { Minstrel } from "@boardmeister/minstrel"
 import type { PositionEvent } from "@boardmeister/antetype-cursor"
+import type { RegisterMethodEvent } from "@boardmeister/antetype-conditions"
 import type { Herald, ISubscriber, Subscriptions  } from "@boardmeister/herald"
 import type Workspace from "@src/module";
 import { Event as AntetypeCursorEvent } from "@boardmeister/antetype-cursor"
@@ -86,6 +87,10 @@ export class AntetypeWorkspace {
     e.detail.settings.push(this.#instance!.getSettingsDefinition());
   }
 
+  registerConditionMethods(e: RegisterMethodEvent): void {
+    this.#instance!.handleConditionsMethodRegisterMethod(e);
+  }
+
   static subscriptions: Subscriptions = {
     [Event.CALC]: 'calc',
     [AntetypeCoreEvent.MODULES]: 'register',
@@ -107,6 +112,7 @@ export class AntetypeWorkspace {
     [AntetypeCursorEvent.POSITION]: 'subtractWorkspace',
     [AntetypeCursorEvent.CALC]: 'calc',
     [AntetypeCoreEvent.SETTINGS]: 'defineSettings',
+    'antetype.conditions.method.register': 'registerConditionMethods',
   }
 }
 

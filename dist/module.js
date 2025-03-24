@@ -11,6 +11,7 @@ var Workspace = class {
   #ctx;
   #translationSet = 0;
   #drawWorkspace = true;
+  #isExporting = false;
   #quality = 1;
   #scale = 1;
   #translate = {
@@ -25,11 +26,26 @@ var Workspace = class {
     this.#updateCanvas();
     this.#modules = modules;
     this.#ctx = this.#canvas.getContext("2d");
+    this.#observeCanvasResize();
+  }
+  #observeCanvasResize() {
+    const resizeObserver = new ResizeObserver(() => {
+      if (!this.#updateCanvas()) return;
+      void this.#modules.core.view.recalculate().then(() => {
+        this.#modules.core.view.redraw();
+      });
+    });
+    resizeObserver.observe(this.#canvas);
   }
   #updateCanvas() {
-    const offWidth = this.#canvas.offsetWidth, offHeight = this.#canvas.offsetHeight;
-    this.#canvas.setAttribute("width", String(offWidth * this.#quality));
-    this.#canvas.setAttribute("height", String(offHeight * this.#quality));
+    const offWidth = this.#canvas.offsetWidth * this.#quality, offHeight = this.#canvas.offsetHeight * this.#quality, currentW = Number(this.#canvas.getAttribute("width")), currentH = Number(this.#canvas.getAttribute("height"));
+    if (!offHeight || !offWidth || currentW === offWidth && currentH === offHeight) {
+      return false;
+    }
+    console.log(offWidth, currentW, offHeight, currentH);
+    this.#canvas.setAttribute("height", String(offHeight));
+    this.#canvas.setAttribute("width", String(offWidth));
+    return true;
   }
   setTranslateLeft(left) {
     this.#translate.left = left;
@@ -60,7 +76,7 @@ var Workspace = class {
     this.#scale = scale;
   }
   scale(value) {
-    return value * this.#quality * this.#scale;
+    return value * this.#scale * this.#quality;
   }
   typeToExt(ext) {
     if (ext == "image/png" /* PNG */.toString()) {
@@ -93,8 +109,10 @@ var Workspace = class {
     const view = this.#modules.core.view;
     const shouldDrawWorkspaceInitial = this.#drawWorkspace;
     try {
-      this.shouldDrawWorkspace(false);
+      this.#drawWorkspace = false;
+      this.setExporting(true);
       this.#updateQualityBasedOnDpi(dpi);
+      this.#updateCanvas();
       await view.recalculate();
       view.redraw();
       const blob = await this.#canvasToBlob(type, quality);
@@ -103,8 +121,10 @@ var Workspace = class {
       }
       return blob;
     } finally {
-      this.shouldDrawWorkspace(shouldDrawWorkspaceInitial);
+      this.#drawWorkspace = shouldDrawWorkspaceInitial;
+      this.setExporting(false);
       this.setQuality(1);
+      this.#updateCanvas();
       await view.recalculate();
       view.redraw();
     }
@@ -141,11 +161,14 @@ var Workspace = class {
       this.#canvas.height
     );
   }
-  shouldDrawWorkspace(toggle) {
-    this.#drawWorkspace = toggle;
+  setExporting(toggle) {
+    this.#isExporting = toggle;
+  }
+  isExporting() {
+    return this.#isExporting;
   }
   drawWorkspace() {
-    if (!this.#drawWorkspace) {
+    if (!this.#isExporting) {
       return;
     }
     const ctx = this.#ctx;
@@ -183,12 +206,13 @@ var Workspace = class {
   }
   toRelative(value, direction = "x", precision = 3) {
     const { height: height2, width: width2 } = this.#getSizeRelative();
+    value = Math.round((value + Number.EPSILON) * 10 ** precision) / 10 ** precision;
     let result2 = value / height2 * 100, suffix = "h%";
     if (direction === "x") {
       result2 = value / width2 * 100;
       suffix = "w%";
     }
-    return String(Math.round(result2 * 10 ** precision) / 10 ** precision) + suffix;
+    return String(Math.round((result2 + Number.EPSILON) * 10 ** precision) / 10 ** precision) + suffix;
   }
   calc(operation, quiet = false) {
     if (typeof operation == "number") {
@@ -292,6 +316,18 @@ var Workspace = class {
     return {
       width: size.width,
       height: size.height
+    };
+  }
+  handleConditionsMethodRegisterMethod(e) {
+    const { methods } = e.detail;
+    methods.hideOnExport = {
+      name: "Hide on export",
+      type: "hide-export",
+      resolve: ({ event }) => {
+        if (this.isExporting()) {
+          event.detail.element = null;
+        }
+      }
     };
   }
   getSettingsDefinition() {

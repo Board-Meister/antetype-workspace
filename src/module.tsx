@@ -1,3 +1,4 @@
+import { RegisterMethodEvent } from "@boardmeister/antetype-conditions";
 import type { ICore, Modules, ISettingsDefinition } from "@boardmeister/antetype-core";
 
 export interface IWorkspace {
@@ -12,7 +13,8 @@ export interface IWorkspace {
   getScale: () => number;
   setScale: (scale: any) => void;
   getSize: () => IWorkspaceSize;
-  shouldDrawWorkspace: (toggle: boolean) => void;
+  setExporting: (toggle: boolean) => void;
+  isExporting: () => boolean;
   setTranslateLeft: (left: number) => void;
   setTranslateTop: (top: number) => void;
   getTranslate: () => ITranslate;
@@ -59,6 +61,7 @@ export default class Workspace implements IWorkspace {
   #ctx: CanvasRenderingContext2D;
   #translationSet: number = 0;
   #drawWorkspace = true;
+  #isExporting = false;
   #quality = 1;
   #scale = 1;
   #translate: ITranslate = {
@@ -77,14 +80,35 @@ export default class Workspace implements IWorkspace {
     this.#updateCanvas();
     this.#modules = modules;
     this.#ctx = this.#canvas.getContext('2d')!;
+    this.#observeCanvasResize();
   }
 
-  #updateCanvas(): void {
-    const offWidth = this.#canvas.offsetWidth,
-      offHeight = this.#canvas.offsetHeight
+  #observeCanvasResize(): void {
+    const resizeObserver = new ResizeObserver(() => {
+      if (!this.#updateCanvas()) return;
+      void this.#modules.core.view.recalculate().then(() => {
+        this.#modules.core.view.redraw();
+      })
+    });
+
+    resizeObserver.observe(this.#canvas);
+  }
+
+  #updateCanvas(): boolean {
+    const offWidth = this.#canvas.offsetWidth * this.#quality,
+      offHeight = this.#canvas.offsetHeight * this.#quality,
+     currentW = Number(this.#canvas.getAttribute('width')),
+     currentH = Number(this.#canvas.getAttribute('height'))
     ;
-    this.#canvas.setAttribute('width', String(offWidth * this.#quality));
-    this.#canvas.setAttribute('height', String(offHeight * this.#quality));
+    if (!offHeight || !offWidth || (currentW === offWidth && currentH === offHeight)) {
+      return false;
+    }
+    console.log(offWidth, currentW, offHeight, currentH);
+
+    this.#canvas.setAttribute('height', String(offHeight));
+    this.#canvas.setAttribute('width', String(offWidth));
+
+    return true;
   }
 
   setTranslateLeft(left: number): void {
@@ -125,7 +149,7 @@ export default class Workspace implements IWorkspace {
   }
 
   scale(value: number): number {
-    return value * this.#quality * this.#scale;
+    return value * this.#scale * this.#quality;
   }
 
   typeToExt(ext?:string): string {
@@ -166,8 +190,10 @@ export default class Workspace implements IWorkspace {
     const view = this.#modules.core.view;
     const shouldDrawWorkspaceInitial = this.#drawWorkspace;
     try {
-      this.shouldDrawWorkspace(false);
+      this.#drawWorkspace = false;
+      this.setExporting(true);
       this.#updateQualityBasedOnDpi(dpi);
+      this.#updateCanvas();
       await view.recalculate()
       view.redraw();
       const blob = await this.#canvasToBlob(type as BlobTypes, quality);
@@ -177,8 +203,10 @@ export default class Workspace implements IWorkspace {
 
       return blob;
     } finally {
-      this.shouldDrawWorkspace(shouldDrawWorkspaceInitial);
+      this.#drawWorkspace = shouldDrawWorkspaceInitial;
+      this.setExporting(false);
       this.setQuality(1);
+      this.#updateCanvas();
       await view.recalculate()
       view.redraw();
     }
@@ -223,12 +251,16 @@ export default class Workspace implements IWorkspace {
     );
   }
 
-  shouldDrawWorkspace(toggle: boolean): void {
-    this.#drawWorkspace = toggle;
+  setExporting(toggle: boolean): void {
+    this.#isExporting = toggle;
+  }
+
+  isExporting(): boolean {
+    return this.#isExporting;
   }
 
   drawWorkspace(): void {
-    if (!this.#drawWorkspace) {
+    if (!this.#isExporting) {
       return;
     }
     const ctx = this.#ctx;
@@ -271,6 +303,8 @@ export default class Workspace implements IWorkspace {
 
   toRelative(value: number, direction: 'x'|'y' = 'x', precision = 3): string {
     const { height, width } = this.#getSizeRelative();
+    value = Math.round((value + Number.EPSILON) * 10**precision) / 10**precision;
+
     let result = (value/height * 100),
       suffix = 'h%'
     ;
@@ -279,7 +313,7 @@ export default class Workspace implements IWorkspace {
       suffix = 'w%';
     }
 
-    return String(Math.round(result * 10**precision) / 10**precision) + suffix;
+    return String(Math.round((result + Number.EPSILON) * 10**precision) / 10**precision) + suffix;
   }
 
   calc(operation: any, quiet = false): number {
@@ -426,6 +460,19 @@ export default class Workspace implements IWorkspace {
       width: size.width,
       height: size.height,
     };
+  }
+
+  handleConditionsMethodRegisterMethod(e: RegisterMethodEvent): void {
+    const { methods } = e.detail;
+    methods.hideOnExport = {
+      name: 'Hide on export',
+      type: 'hide-export',
+      resolve: ({ event }) => {
+        if (this.isExporting()) {
+          event.detail.element = null;
+        }
+      }
+    }
   }
 
   getSettingsDefinition(): ISettingsDefinition {

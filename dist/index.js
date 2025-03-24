@@ -113,6 +113,9 @@ var AntetypeWorkspace = class {
   defineSettings(e) {
     e.detail.settings.push(this.#instance.getSettingsDefinition());
   }
+  registerConditionMethods(e) {
+    this.#instance.handleConditionsMethodRegisterMethod(e);
+  }
   static subscriptions = {
     ["antetype.workspace.calc" /* CALC */]: "calc",
     [s2.MODULES]: "register",
@@ -133,7 +136,8 @@ var AntetypeWorkspace = class {
     // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
     [Event.POSITION]: "subtractWorkspace",
     [Event.CALC]: "calc",
-    [s2.SETTINGS]: "defineSettings"
+    [s2.SETTINGS]: "defineSettings",
+    "antetype.conditions.method.register": "registerConditionMethods"
   };
 };
 var EnAntetypeWorkspace = AntetypeWorkspace;
