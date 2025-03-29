@@ -260,7 +260,7 @@ export default class Workspace implements IWorkspace {
   }
 
   drawWorkspace(): void {
-    if (!this.#isExporting) {
+    if (this.#isExporting) {
       return;
     }
     const ctx = this.#ctx;

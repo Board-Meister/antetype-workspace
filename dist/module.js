@@ -168,7 +168,7 @@ var Workspace = class {
     return this.#isExporting;
   }
   drawWorkspace() {
-    if (!this.#isExporting) {
+    if (this.#isExporting) {
       return;
     }
     const ctx = this.#ctx;
