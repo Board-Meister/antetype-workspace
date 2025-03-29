@@ -103,7 +103,6 @@ export default class Workspace implements IWorkspace {
     if (!offHeight || !offWidth || (currentW === offWidth && currentH === offHeight)) {
       return false;
     }
-    console.log(offWidth, currentW, offHeight, currentH);
 
     this.#canvas.setAttribute('height', String(offHeight));
     this.#canvas.setAttribute('width', String(offWidth));
@@ -420,7 +419,7 @@ export default class Workspace implements IWorkspace {
 
     if (width > this.#ctx.canvas.offsetWidth) {
       width = this.#ctx.canvas.offsetWidth;
-      height = width * (height/width);
+      height = width / ratio;
     }
 
     return {
@@ -433,7 +432,8 @@ export default class Workspace implements IWorkspace {
     const settings = this.#getSettings(),
       { width: aWidth, height: aHeight } = this.getSize(),
       rWidth = settings.relative?.width ?? aWidth,
-      rHeight = settings.relative?.height ?? aHeight
+      rHeight = settings.relative?.height ?? aHeight,
+      ratio = rWidth/rHeight
     ;
 
     const size = {
@@ -443,17 +443,16 @@ export default class Workspace implements IWorkspace {
     const height = this.#ctx.canvas.offsetHeight;
 
     if (!size.width) {
-      const ratio = rWidth/rHeight;
       size.width = this.scale(height * ratio);
     }
 
     if (!size.height) {
-      const width = size.width;
-
       size.height = this.scale(height);
-      if (width > this.#ctx.canvas.offsetWidth) {
-        size.height = width * (rHeight/rWidth);
-      }
+    }
+
+    if (size.width > this.#ctx.canvas.offsetWidth) {
+      size.width = this.#ctx.canvas.offsetWidth;
+      size.height = size.width / ratio;
     }
 
     return {

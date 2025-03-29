@@ -42,7 +42,6 @@ var Workspace = class {
     if (!offHeight || !offWidth || currentW === offWidth && currentH === offHeight) {
       return false;
     }
-    console.log(offWidth, currentW, offHeight, currentH);
     this.#canvas.setAttribute("height", String(offHeight));
     this.#canvas.setAttribute("width", String(offWidth));
     return true;
@@ -288,7 +287,7 @@ var Workspace = class {
     let height2 = this.#ctx.canvas.offsetHeight, width2 = height2 * ratio;
     if (width2 > this.#ctx.canvas.offsetWidth) {
       width2 = this.#ctx.canvas.offsetWidth;
-      height2 = width2 * (height2 / width2);
+      height2 = width2 / ratio;
     }
     return {
       width: this.scale(width2),
@@ -296,22 +295,21 @@ var Workspace = class {
     };
   }
   #getSizeRelative() {
-    const settings = this.#getSettings(), { width: aWidth2, height: aHeight2 } = this.getSize(), rWidth = settings.relative?.width ?? aWidth2, rHeight = settings.relative?.height ?? aHeight2;
+    const settings = this.#getSettings(), { width: aWidth2, height: aHeight2 } = this.getSize(), rWidth = settings.relative?.width ?? aWidth2, rHeight = settings.relative?.height ?? aHeight2, ratio = rWidth / rHeight;
     const size = {
       width: settings.relative?.width ?? 0,
       height: settings.relative?.height ?? 0
     };
     const height2 = this.#ctx.canvas.offsetHeight;
     if (!size.width) {
-      const ratio = rWidth / rHeight;
       size.width = this.scale(height2 * ratio);
     }
     if (!size.height) {
-      const width2 = size.width;
       size.height = this.scale(height2);
-      if (width2 > this.#ctx.canvas.offsetWidth) {
-        size.height = width2 * (rHeight / rWidth);
-      }
+    }
+    if (size.width > this.#ctx.canvas.offsetWidth) {
+      size.width = this.#ctx.canvas.offsetWidth;
+      size.height = size.width / ratio;
     }
     return {
       width: size.width,
