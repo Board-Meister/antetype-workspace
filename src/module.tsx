@@ -1,5 +1,19 @@
 import { RegisterMethodEvent } from "@boardmeister/antetype-conditions";
-import type { ICore, Modules, ISettingsDefinition } from "@boardmeister/antetype-core";
+import type { ICore, DrawEvent, IBaseDef, Modules, SettingsEvent, ISettingsDefinition } from "@boardmeister/antetype-core";
+import type { Herald  } from "@boardmeister/herald"
+import type { PositionEvent } from "@boardmeister/antetype-cursor"
+import { Event as AntetypeCursorEvent } from "@boardmeister/antetype-cursor"
+import { Event as AntetypeCoreEvent } from "@boardmeister/antetype-core"
+
+export interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
+  purpose: string;
+  layerType: string;
+  values: T;
+}
+
+export enum Event {
+  CALC = 'antetype.workspace.calc',
+}
 
 export interface IWorkspace {
   toRelative: (value: number, direction?: 'x'|'y') => string;
@@ -58,6 +72,7 @@ export interface ITranslate {
 export default class Workspace implements IWorkspace {
   #canvas: HTMLCanvasElement;
   #modules: Modules;
+  #herald: Herald;
   #ctx: CanvasRenderingContext2D;
   #translationSet: number = 0;
   #drawWorkspace = true;
@@ -72,6 +87,7 @@ export default class Workspace implements IWorkspace {
   constructor(
     canvas: HTMLCanvasElement|null,
     modules: Modules,
+    herald: Herald,
   ) {
     if (!canvas) {
       throw new Error('[Antetype Workspace] Provided canvas is empty')
@@ -81,6 +97,87 @@ export default class Workspace implements IWorkspace {
     this.#modules = modules;
     this.#ctx = this.#canvas.getContext('2d')!;
     this.#observeCanvasResize();
+    this.#herald = herald;
+    this.subscribe();
+  }
+
+  subscribe(): void {
+    const unregister = this.#herald.batch([
+      {
+        event: AntetypeCoreEvent.CLOSE,
+        subscription: () => {
+          unregister();
+        }
+      },
+      {
+        event: Event.CALC,
+        subscription: this.calcEventHandle.bind(this),
+      },
+      {
+        event: AntetypeCoreEvent.DRAW,
+        subscription: [
+          {
+            method: (event: CustomEvent<DrawEvent>): void => {
+              const { element } = event.detail;
+              const typeToAction: Record<string, (element: IBaseDef) => void> = {
+                clear: this.clearCanvas.bind(this),
+                workspace: this.drawWorkspace.bind(this),
+              };
+
+              const el = typeToAction[element.type]
+              if (typeof el == 'function') {
+                el(element);
+              }
+            },
+            priority: 1,
+          },
+          {
+            method: (): void => {
+              this.setOrigin();
+            },
+            priority: -255,
+          },
+          {
+            method: (): void => {
+              this.restore();
+            },
+            priority: 255,
+          }
+        ]
+      },
+    // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
+      {
+        event: AntetypeCursorEvent.POSITION,
+        subscription: (event: CustomEvent<PositionEvent>): void => {
+          event.detail.x -= this.getLeft();
+          event.detail.y -= this.getTop();
+        }
+      },
+      {
+        event: AntetypeCursorEvent.CALC,
+        subscription: this.calcEventHandle.bind(this),
+      },
+      {
+        event: AntetypeCoreEvent.SETTINGS,
+        subscription: (e: SettingsEvent): void => {
+          e.detail.settings.push(this.getSettingsDefinition());
+        }
+      },
+      {
+        event: 'antetype.conditions.method.register',
+        subscription: (e: RegisterMethodEvent): void => {
+          this.handleConditionsMethodRegisterMethod(e);
+        }
+      }
+    ])
+  }
+
+  calcEventHandle(event: CustomEvent<ICalcEvent>): void {
+    const values = event.detail.values;
+    const keys = Object.keys(values);
+    for (const key of keys) {
+      values[key] = this.calc(values[key]);
+    }
   }
 
   #observeCanvasResize(): void {

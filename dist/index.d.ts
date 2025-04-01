@@ -8,79 +8,6 @@ interface ModulesEvent {
 	canvas: HTMLCanvasElement | null;
 }
 declare type Module$1 = object;
-interface DrawEvent {
-	element: IBaseDef;
-}
-interface ISettingsDefinitionFieldGeneric {
-	label: string;
-	type: string;
-}
-type SettingsDefinitionField = ISettingsDefinitionFieldInput | ISettingsDefinitionFieldContainer | ISettingsDefinitionFieldGeneric;
-interface ISettingsDefinitionFieldContainer extends ISettingsDefinitionFieldGeneric {
-	type: "container";
-	fields: SettingsDefinitionField[][];
-	collapsable?: boolean;
-}
-type ISettingsInputValue = string | number | string[] | number[] | Record<string, any> | Record<string, any>[] | undefined;
-interface ISettingsDefinitionFieldInput extends ISettingsDefinitionFieldGeneric {
-	name: string;
-	value: ISettingsInputValue;
-}
-interface ISettingsDefinitionTab {
-	label: string;
-	icon?: string;
-	fields: SettingsDefinitionField[][];
-}
-interface ISettingsDefinition {
-	details: {
-		label: string;
-		icon?: string;
-	};
-	name: string;
-	tabs: ISettingsDefinitionTab[];
-}
-interface ISettingEvent {
-	settings: ISettingsDefinition[];
-	additional: Record<string, any>;
-}
-type SettingsEvent = CustomEvent<ISettingEvent>;
-declare type XValue = number;
-declare type YValue = XValue;
-interface IStart {
-	x: XValue;
-	y: YValue;
-}
-interface ISize {
-	w: XValue;
-	h: YValue;
-}
-interface IArea {
-	size: ISize;
-	start: IStart;
-}
-interface IHierarchy {
-	parent: IParentDef | null;
-	position: number;
-}
-interface IBaseDef<T = never> {
-	[key: symbol | string]: unknown;
-	id?: string;
-	hierarchy?: IHierarchy;
-	start: IStart;
-	size: ISize;
-	type: string;
-	can?: {
-		move?: boolean;
-		scale?: boolean;
-		remove?: boolean;
-	};
-	area?: IArea;
-	data?: T;
-}
-interface IParentDef extends IBaseDef {
-	layout: Layout;
-}
-type Layout = (IBaseDef | IParentDef)[];
 interface EntryConfig {
 	source: string | object;
 	namespace: string;
@@ -217,99 +144,14 @@ declare class Minstrel {
 	component<T>(module: Module, suffix: string, scope?: Record<string, any>): React$1.FC<T>;
 	asset(module: Module, suffix: string): string;
 }
-interface PositionEvent {
-	x: number;
-	y: number;
+export interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
+	purpose: string;
+	layerType: string;
+	values: T;
 }
-interface CalcEvent {
-	element: IBaseDef$1 | null;
-	sessionId: symbol | null;
+declare enum Event$1 {
+	CALC = "antetype.workspace.calc"
 }
-declare type XValue$1 = number;
-declare type YValue$1 = XValue$1;
-interface IStart$1 {
-	x: XValue$1;
-	y: YValue$1;
-}
-interface ISize$1 {
-	w: XValue$1;
-	h: YValue$1;
-}
-interface IArea$1 {
-	size: ISize$1;
-	start: IStart$1;
-}
-interface IHierarchy$1 {
-	parent: IParentDef$1 | null;
-	position: number;
-}
-interface IBaseDef$1<T = never> {
-	[key: symbol | string]: unknown;
-	id?: string;
-	hierarchy?: IHierarchy$1;
-	start: IStart$1;
-	size: ISize$1;
-	type: string;
-	can?: {
-		move?: boolean;
-		scale?: boolean;
-		remove?: boolean;
-	};
-	area?: IArea$1;
-	data?: T;
-}
-interface IParentDef$1 extends IBaseDef$1 {
-	layout: Layout$1;
-}
-type Layout$1 = (IBaseDef$1 | IParentDef$1)[];
-declare const inputLayerSymbol: unique symbol;
-declare const actionLayerSymbol: unique symbol;
-declare const changeActionSymbol: unique symbol;
-interface IInputHandler<T = any> extends Record<string | symbol, unknown> {
-	id?: string;
-	[inputLayerSymbol]?: IConditionAwareDef;
-	type: string;
-	name: string;
-	value: T;
-}
-interface IConditionInstruction {
-	text: string;
-}
-interface IChange {
-	[changeActionSymbol]: IAction;
-	type: string;
-	arguments: IMethodArgument[];
-}
-interface IAction {
-	[actionLayerSymbol]: IConditionAwareDef;
-	rule: IConditionInstruction;
-	changes: IChange[];
-}
-interface IConditionAwareDef extends IBaseDef$1 {
-	conditions?: {
-		inputs?: IInputHandler[];
-		actions?: IAction[];
-	};
-}
-interface IMethodArgument extends Record<string, any> {
-	type: string;
-	value?: any;
-	inputId?: string;
-}
-interface IResolveArgument {
-	event: CustomEvent<CalcEvent>;
-	layer: IConditionAwareDef;
-}
-interface IMethod<T extends any[] = any[], P = unknown> {
-	name: string;
-	type: string;
-	arguments?: IMethodArgument[];
-	resolve: (argument: IResolveArgument, ...args: T) => P;
-}
-interface IRegisterMethodEvent {
-	methods: Record<string, IMethod>;
-}
-type RegisterMethodEvent = CustomEvent<IRegisterMethodEvent>;
 export interface IWorkspace {
 	toRelative: (value: number, direction?: "x" | "y") => string;
 	calc: (value: string) => number;
@@ -361,26 +203,11 @@ export interface IInjected extends Record<string, object> {
 	minstrel: Minstrel;
 	herald: Herald;
 }
-declare enum Event$1 {
-	CALC = "antetype.workspace.calc"
-}
-export interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
-	purpose: string;
-	layerType: string;
-	values: T;
-}
 export declare class AntetypeWorkspace {
 	#private;
 	static inject: Record<string, string>;
 	inject(injections: IInjected): void;
 	register(event: CustomEvent<ModulesEvent>): Promise<void>;
-	draw(event: CustomEvent<DrawEvent>): void;
-	setOrigin(): void;
-	restoreOrigin(): void;
-	calc(event: CustomEvent<ICalcEvent>): void;
-	subtractWorkspace(event: CustomEvent<PositionEvent>): void;
-	defineSettings(e: SettingsEvent): void;
-	registerConditionMethods(e: RegisterMethodEvent): void;
 	static subscriptions: Subscriptions;
 }
 declare const EnAntetypeWorkspace: IInjectable<IInjected> & ISubscriber;

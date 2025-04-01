@@ -1,4 +1,65 @@
+// ../antetype-cursor/dist/index.js
+var s = ((t) => (t.INIT = "antetype.init", t.CLOSE = "antetype.close", t.DRAW = "antetype.draw", t.CALC = "antetype.calc", t.RECALC_FINISHED = "antetype.recalc.finished", t.MODULES = "antetype.modules", t.SETTINGS = "antetype.settings.definition", t))(s || {});
+var Event = /* @__PURE__ */ ((Event22) => {
+  Event22["CALC"] = "antetype.cursor.calc";
+  Event22["POSITION"] = "antetype.cursor.position";
+  Event22["DOWN"] = "antetype.cursor.on.down";
+  Event22["UP"] = "antetype.cursor.on.up";
+  Event22["MOVE"] = "antetype.cursor.on.move";
+  Event22["SLIP"] = "antetype.cursor.on.slip";
+  return Event22;
+})(Event || {});
+var AntetypeCursor = class {
+  #injected;
+  #module = null;
+  #instance = null;
+  static inject = {
+    minstrel: "boardmeister/minstrel",
+    herald: "boardmeister/herald"
+  };
+  inject(injections) {
+    this.#injected = injections;
+  }
+  async register(event) {
+    const { modules, canvas } = event.detail;
+    if (!this.#module) {
+      const module = this.#injected.minstrel.getResourceUrl(this, "module.js");
+      this.#module = (await import(module)).default;
+    }
+    this.#instance = modules.cursor = this.#module({
+      canvas,
+      modules,
+      injected: this.#injected
+    });
+  }
+  // @TODO there is not unregister method to remove all subscriptions
+  draw(event) {
+    if (!this.#instance) {
+      return;
+    }
+    const { element } = event.detail;
+    const typeToAction = {
+      selection: this.#instance.drawSelection
+    };
+    const el = typeToAction[element.type];
+    if (typeof el == "function") {
+      el(element);
+    }
+  }
+  static subscriptions = {
+    [s.MODULES]: "register",
+    [s.DRAW]: "draw"
+  };
+};
+
+// ../antetype-core/dist/index.js
+var s2 = ((t) => (t.INIT = "antetype.init", t.CLOSE = "antetype.close", t.DRAW = "antetype.draw", t.CALC = "antetype.calc", t.RECALC_FINISHED = "antetype.recalc.finished", t.MODULES = "antetype.modules", t.SETTINGS = "antetype.settings.definition", t))(s2 || {});
+
 // src/module.tsx
+var Event2 = /* @__PURE__ */ ((Event3) => {
+  Event3["CALC"] = "antetype.workspace.calc";
+  return Event3;
+})(Event2 || {});
 var BlobTypes = /* @__PURE__ */ ((BlobTypes2) => {
   BlobTypes2["WEBP"] = "image/webp";
   BlobTypes2["PNG"] = "image/png";
@@ -8,6 +69,7 @@ var BlobTypes = /* @__PURE__ */ ((BlobTypes2) => {
 var Workspace = class {
   #canvas;
   #modules;
+  #herald;
   #ctx;
   #translationSet = 0;
   #drawWorkspace = true;
@@ -18,7 +80,7 @@ var Workspace = class {
     left: 0,
     top: 0
   };
-  constructor(canvas, modules) {
+  constructor(canvas, modules, herald) {
     if (!canvas) {
       throw new Error("[Antetype Workspace] Provided canvas is empty");
     }
@@ -27,6 +89,84 @@ var Workspace = class {
     this.#modules = modules;
     this.#ctx = this.#canvas.getContext("2d");
     this.#observeCanvasResize();
+    this.#herald = herald;
+    this.subscribe();
+  }
+  subscribe() {
+    const unregister = this.#herald.batch([
+      {
+        event: s2.CLOSE,
+        subscription: () => {
+          unregister();
+        }
+      },
+      {
+        event: "antetype.workspace.calc" /* CALC */,
+        subscription: this.calcEventHandle.bind(this)
+      },
+      {
+        event: s2.DRAW,
+        subscription: [
+          {
+            method: (event) => {
+              const { element } = event.detail;
+              const typeToAction = {
+                clear: this.clearCanvas.bind(this),
+                workspace: this.drawWorkspace.bind(this)
+              };
+              const el = typeToAction[element.type];
+              if (typeof el == "function") {
+                el(element);
+              }
+            },
+            priority: 1
+          },
+          {
+            method: () => {
+              this.setOrigin();
+            },
+            priority: -255
+          },
+          {
+            method: () => {
+              this.restore();
+            },
+            priority: 255
+          }
+        ]
+      },
+      // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
+      {
+        event: Event.POSITION,
+        subscription: (event) => {
+          event.detail.x -= this.getLeft();
+          event.detail.y -= this.getTop();
+        }
+      },
+      {
+        event: Event.CALC,
+        subscription: this.calcEventHandle.bind(this)
+      },
+      {
+        event: s2.SETTINGS,
+        subscription: (e) => {
+          e.detail.settings.push(this.getSettingsDefinition());
+        }
+      },
+      {
+        event: "antetype.conditions.method.register",
+        subscription: (e) => {
+          this.handleConditionsMethodRegisterMethod(e);
+        }
+      }
+    ]);
+  }
+  calcEventHandle(event) {
+    const values = event.detail.values;
+    const keys = Object.keys(values);
+    for (const key of keys) {
+      values[key] = this.calc(values[key]);
+    }
   }
   #observeCanvasResize() {
     const resizeObserver = new ResizeObserver(() => {
@@ -364,5 +504,6 @@ var Workspace = class {
 };
 export {
   BlobTypes,
+  Event2 as Event,
   Workspace as default
 };
