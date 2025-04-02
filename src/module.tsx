@@ -4,15 +4,12 @@ import type { Herald  } from "@boardmeister/herald"
 import type { PositionEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCursorEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCoreEvent } from "@boardmeister/antetype-core"
+import { Event } from ".";
 
 export interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
   purpose: string;
   layerType: string;
   values: T;
-}
-
-export enum Event {
-  CALC = 'antetype.workspace.calc',
 }
 
 export interface IWorkspace {
@@ -145,7 +142,7 @@ export default class Workspace implements IWorkspace {
           }
         ]
       },
-    // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
+    // @TODO those bridge listeners will probably be moved to the Antetype as a defining tools
       {
         event: AntetypeCursorEvent.POSITION,
         subscription: (event: CustomEvent<PositionEvent>): void => {
@@ -547,9 +544,9 @@ export default class Workspace implements IWorkspace {
       size.height = this.scale(height);
     }
 
-    if (size.width > this.#ctx.canvas.offsetWidth) {
-      size.width = this.#ctx.canvas.offsetWidth;
-      size.height = size.width / ratio;
+    if (size.width > this.scale(this.#ctx.canvas.offsetWidth)) {
+      size.width = this.scale(this.#ctx.canvas.offsetWidth);
+      size.height = this.scale(this.#ctx.canvas.offsetWidth / ratio);
     }
 
     return {

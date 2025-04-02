@@ -1,7 +1,11 @@
 // ../antetype-core/dist/index.js
-var s = ((t) => (t.INIT = "antetype.init", t.CLOSE = "antetype.close", t.DRAW = "antetype.draw", t.CALC = "antetype.calc", t.RECALC_FINISHED = "antetype.recalc.finished", t.MODULES = "antetype.modules", t.SETTINGS = "antetype.settings.definition", t))(s || {});
+var o = ((e) => (e.INIT = "antetype.init", e.CLOSE = "antetype.close", e.DRAW = "antetype.draw", e.CALC = "antetype.calc", e.RECALC_FINISHED = "antetype.recalc.finished", e.MODULES = "antetype.modules", e.SETTINGS = "antetype.settings.definition", e))(o || {});
 
 // src/index.tsx
+var Event = /* @__PURE__ */ ((Event2) => {
+  Event2["CALC"] = "antetype.workspace.calc";
+  return Event2;
+})(Event || {});
 var AntetypeWorkspace = class {
   #module = null;
   #injected;
@@ -21,32 +25,13 @@ var AntetypeWorkspace = class {
     modules.workspace = new this.#module(canvas, modules, this.#injected.herald);
   }
   static subscriptions = {
-    // [Event.CALC]: 'calc',
-    [s.MODULES]: "register"
-    // [AntetypeCoreEvent.DRAW]: [
-    //   {
-    //     method: 'draw',
-    //     priority: 1,
-    //   },
-    //   {
-    //     method: 'setOrigin',
-    //     priority: -255,
-    //   },
-    //   {
-    //     method: 'restoreOrigin',
-    //     priority: 255,
-    //   }
-    // ],
-    // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
-    // [AntetypeCursorEvent.POSITION]: 'subtractWorkspace',
-    // [AntetypeCursorEvent.CALC]: 'calc',
-    // [AntetypeCoreEvent.SETTINGS]: 'defineSettings',
-    // 'antetype.conditions.method.register': 'registerConditionMethods',
+    [o.MODULES]: "register"
   };
 };
 var EnAntetypeWorkspace = AntetypeWorkspace;
 var src_default = EnAntetypeWorkspace;
 export {
   AntetypeWorkspace,
+  Event,
   src_default as default
 };

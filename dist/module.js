@@ -1,5 +1,5 @@
 // ../antetype-cursor/dist/index.js
-var s = ((t) => (t.INIT = "antetype.init", t.CLOSE = "antetype.close", t.DRAW = "antetype.draw", t.CALC = "antetype.calc", t.RECALC_FINISHED = "antetype.recalc.finished", t.MODULES = "antetype.modules", t.SETTINGS = "antetype.settings.definition", t))(s || {});
+var o = ((e) => (e.INIT = "antetype.init", e.CLOSE = "antetype.close", e.DRAW = "antetype.draw", e.CALC = "antetype.calc", e.RECALC_FINISHED = "antetype.recalc.finished", e.MODULES = "antetype.modules", e.SETTINGS = "antetype.settings.definition", e))(o || {});
 var Event = /* @__PURE__ */ ((Event22) => {
   Event22["CALC"] = "antetype.cursor.calc";
   Event22["POSITION"] = "antetype.cursor.position";
@@ -29,7 +29,7 @@ var AntetypeCursor = class {
     this.#instance = modules.cursor = this.#module({
       canvas,
       modules,
-      injected: this.#injected
+      herald: this.#injected.herald
     });
   }
   // @TODO there is not unregister method to remove all subscriptions
@@ -47,19 +47,39 @@ var AntetypeCursor = class {
     }
   }
   static subscriptions = {
-    [s.MODULES]: "register",
-    [s.DRAW]: "draw"
+    [o.MODULES]: "register",
+    [o.DRAW]: "draw"
   };
 };
 
 // ../antetype-core/dist/index.js
-var s2 = ((t) => (t.INIT = "antetype.init", t.CLOSE = "antetype.close", t.DRAW = "antetype.draw", t.CALC = "antetype.calc", t.RECALC_FINISHED = "antetype.recalc.finished", t.MODULES = "antetype.modules", t.SETTINGS = "antetype.settings.definition", t))(s2 || {});
+var o2 = ((e) => (e.INIT = "antetype.init", e.CLOSE = "antetype.close", e.DRAW = "antetype.draw", e.CALC = "antetype.calc", e.RECALC_FINISHED = "antetype.recalc.finished", e.MODULES = "antetype.modules", e.SETTINGS = "antetype.settings.definition", e))(o2 || {});
+
+// src/index.tsx
+var AntetypeWorkspace = class {
+  #module = null;
+  #injected;
+  static inject = {
+    minstrel: "boardmeister/minstrel",
+    herald: "boardmeister/herald"
+  };
+  inject(injections) {
+    this.#injected = injections;
+  }
+  async register(event) {
+    const { modules, canvas } = event.detail;
+    if (!this.#module) {
+      const module = this.#injected.minstrel.getResourceUrl(this, "module.js");
+      this.#module = (await import(module)).default;
+    }
+    modules.workspace = new this.#module(canvas, modules, this.#injected.herald);
+  }
+  static subscriptions = {
+    [o2.MODULES]: "register"
+  };
+};
 
 // src/module.tsx
-var Event2 = /* @__PURE__ */ ((Event3) => {
-  Event3["CALC"] = "antetype.workspace.calc";
-  return Event3;
-})(Event2 || {});
 var BlobTypes = /* @__PURE__ */ ((BlobTypes2) => {
   BlobTypes2["WEBP"] = "image/webp";
   BlobTypes2["PNG"] = "image/png";
@@ -95,7 +115,7 @@ var Workspace = class {
   subscribe() {
     const unregister = this.#herald.batch([
       {
-        event: s2.CLOSE,
+        event: o2.CLOSE,
         subscription: () => {
           unregister();
         }
@@ -105,7 +125,7 @@ var Workspace = class {
         subscription: this.calcEventHandle.bind(this)
       },
       {
-        event: s2.DRAW,
+        event: o2.DRAW,
         subscription: [
           {
             method: (event) => {
@@ -135,7 +155,7 @@ var Workspace = class {
           }
         ]
       },
-      // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
+      // @TODO those bridge listeners will probably be moved to the Antetype as a defining tools
       {
         event: Event.POSITION,
         subscription: (event) => {
@@ -148,7 +168,7 @@ var Workspace = class {
         subscription: this.calcEventHandle.bind(this)
       },
       {
-        event: s2.SETTINGS,
+        event: o2.SETTINGS,
         subscription: (e) => {
           e.detail.settings.push(this.getSettingsDefinition());
         }
@@ -447,9 +467,9 @@ var Workspace = class {
     if (!size.height) {
       size.height = this.scale(height2);
     }
-    if (size.width > this.#ctx.canvas.offsetWidth) {
-      size.width = this.#ctx.canvas.offsetWidth;
-      size.height = size.width / ratio;
+    if (size.width > this.scale(this.#ctx.canvas.offsetWidth)) {
+      size.width = this.scale(this.#ctx.canvas.offsetWidth);
+      size.height = this.scale(this.#ctx.canvas.offsetWidth / ratio);
     }
     return {
       width: size.width,
@@ -504,6 +524,5 @@ var Workspace = class {
 };
 export {
   BlobTypes,
-  Event2 as Event,
   Workspace as default
 };

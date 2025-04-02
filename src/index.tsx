@@ -10,6 +10,10 @@ export interface IInjected extends Record<string, object> {
   herald: Herald;
 }
 
+export enum Event {
+  CALC = 'antetype.workspace.calc',
+}
+
 export class AntetypeWorkspace {
   #module: (typeof Workspace)|null = null;
   #injected?: IInjected;
@@ -32,27 +36,7 @@ export class AntetypeWorkspace {
   }
 
   static subscriptions: Subscriptions = {
-    // [Event.CALC]: 'calc',
     [AntetypeCoreEvent.MODULES]: 'register',
-    // [AntetypeCoreEvent.DRAW]: [
-    //   {
-    //     method: 'draw',
-    //     priority: 1,
-    //   },
-    //   {
-    //     method: 'setOrigin',
-    //     priority: -255,
-    //   },
-    //   {
-    //     method: 'restoreOrigin',
-    //     priority: 255,
-    //   }
-    // ],
-    // @TODO those bridge listeners will probably be move to the Antetype as a defining tools
-    // [AntetypeCursorEvent.POSITION]: 'subtractWorkspace',
-    // [AntetypeCursorEvent.CALC]: 'calc',
-    // [AntetypeCoreEvent.SETTINGS]: 'defineSettings',
-    // 'antetype.conditions.method.register': 'registerConditionMethods',
   }
 }
 

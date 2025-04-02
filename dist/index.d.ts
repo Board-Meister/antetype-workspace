@@ -84,7 +84,7 @@ declare class _ISubscriber {
 }
 type ISubscriber = typeof _ISubscriber;
 type AmbiguousSubscription = string | Subscription | Subscription[] | EventHandler;
-type EventHandler = (event: CustomEvent) => Promise<void> | void;
+type EventHandler = (event: CustomEvent) => Promise<any> | any;
 type Subscriptions = Record<string, AmbiguousSubscription>;
 interface Subscription {
 	method: string | EventHandler;
@@ -103,9 +103,9 @@ interface IEventRegistration {
 	sort?: boolean;
 	symbol?: symbol | null;
 }
-interface IInjection extends Record<string, object> {
+interface IInjection extends Record<string, object | undefined> {
 	subscribers: ISubscriberObject[];
-	marshal: Marshal;
+	marshal?: Marshal;
 }
 declare class Herald {
 	#private;
@@ -148,9 +148,6 @@ export interface ICalcEvent<T extends Record<string, any> = Record<string, any>>
 	purpose: string;
 	layerType: string;
 	values: T;
-}
-declare enum Event$1 {
-	CALC = "antetype.workspace.calc"
 }
 export interface IWorkspace {
 	toRelative: (value: number, direction?: "x" | "y") => string;
@@ -202,6 +199,9 @@ export interface ITranslate {
 export interface IInjected extends Record<string, object> {
 	minstrel: Minstrel;
 	herald: Herald;
+}
+declare enum Event$1 {
+	CALC = "antetype.workspace.calc"
 }
 export declare class AntetypeWorkspace {
 	#private;
