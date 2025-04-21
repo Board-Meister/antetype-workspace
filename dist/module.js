@@ -53,9 +53,26 @@ var AntetypeCursor = class {
 };
 
 // ../antetype-core/dist/index.js
-var o2 = ((e) => (e.INIT = "antetype.init", e.CLOSE = "antetype.close", e.DRAW = "antetype.draw", e.CALC = "antetype.calc", e.RECALC_FINISHED = "antetype.recalc.finished", e.MODULES = "antetype.modules", e.SETTINGS = "antetype.settings.definition", e))(o2 || {});
+var o2 = { INIT: "antetype.init", CLOSE: "antetype.close", DRAW: "antetype.draw", CALC: "antetype.calc", RECALC_FINISHED: "antetype.recalc.finished", MODULES: "antetype.modules", SETTINGS: "antetype.settings.definition", TYPE_DEFINITION: "antetype.layer.type.definition" };
+var i = class {
+  #e;
+  #n = null;
+  static inject = { minstrel: "boardmeister/minstrel", herald: "boardmeister/herald" };
+  inject(e) {
+    this.#e = e;
+  }
+  async #t(e, n) {
+    let t = this.#e.minstrel.getResourceUrl(this, "core.js");
+    return this.#n = (await import(t)).default, this.#n({ canvas: n, modules: e, herald: this.#e.herald });
+  }
+  async register(e) {
+    let { modules: n, canvas: t } = e.detail;
+    n.core = await this.#t(n, t);
+  }
+  static subscriptions = { [o2.MODULES]: "register" };
+};
 
-// src/index.tsx
+// src/index.ts
 var AntetypeWorkspace = class {
   #module = null;
   #injected;
@@ -79,7 +96,7 @@ var AntetypeWorkspace = class {
   };
 };
 
-// src/module.tsx
+// src/module.ts
 var BlobTypes = /* @__PURE__ */ ((BlobTypes2) => {
   BlobTypes2["WEBP"] = "image/webp";
   BlobTypes2["PNG"] = "image/png";
