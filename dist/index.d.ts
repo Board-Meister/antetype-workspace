@@ -5,7 +5,7 @@ import { RouteProps } from 'react-router-dom';
 
 interface ModulesEvent {
 	modules: Record<string, Module$1>;
-	canvas: HTMLCanvasElement | null;
+	canvas: HTMLCanvasElement;
 }
 declare type Module$1 = object;
 interface EntryConfig {
@@ -154,7 +154,7 @@ export interface IWorkspace {
 	calc: (value: string) => number;
 	drawWorkspace: () => void;
 	download: (settings: IDownloadSettings) => Promise<void>;
-	export: (settings: IExportSettings) => Promise<Blob>;
+	export: (settings?: IExportSettings) => Promise<Blob>;
 	scale: (value: number) => number;
 	getQuality: () => number;
 	setQuality: (quality: any) => void;

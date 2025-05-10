@@ -4,7 +4,7 @@ import type { Herald  } from "@boardmeister/herald"
 import type { PositionEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCursorEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCoreEvent } from "@boardmeister/antetype-core"
-import { Event } from ".";
+import { Event } from "./index";
 
 export interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
   purpose: string;
@@ -17,7 +17,7 @@ export interface IWorkspace {
   calc: (value: string) => number;
   drawWorkspace: () => void;
   download: (settings: IDownloadSettings) => Promise<void>;
-  export: (settings: IExportSettings) => Promise<Blob>;
+  export: (settings?: IExportSettings) => Promise<Blob>;
   scale: (value: number) => number;
   getQuality: () => number;
   setQuality: (quality: any) => void;
@@ -179,7 +179,7 @@ export default class Workspace implements IWorkspace {
 
   #observeCanvasResize(): void {
     const resizeObserver = new ResizeObserver(() => {
-      if (!this.#updateCanvas()) return;
+      if (!this.#updateCanvas() || !this.#modules.core) return;
       void this.#modules.core.view.recalculate().then(() => {
         this.#modules.core.view.redraw();
       })
@@ -279,7 +279,7 @@ export default class Workspace implements IWorkspace {
     this.setQuality(pixels / absoluteHeight);
   }
 
-  async export({ type = BlobTypes.WEBP, quality = .9, dpi = 300 }: IExportSettings): Promise<Blob> {
+  async export({ type = BlobTypes.WEBP, quality = .9, dpi = 300 }: IExportSettings = {}): Promise<Blob> {
     const view = this.#modules.core.view;
     const shouldDrawWorkspaceInitial = this.#drawWorkspace;
     try {
