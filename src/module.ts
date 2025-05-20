@@ -6,6 +6,10 @@ import { Event as AntetypeCursorEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCoreEvent } from "@boardmeister/antetype-core"
 import { Event } from "./index";
 
+export interface ModulesWithCore extends Modules {
+  core: ICore;
+}
+
 export interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
   purpose: string;
   layerType: string;
@@ -68,7 +72,7 @@ export interface ITranslate {
 
 export default class Workspace implements IWorkspace {
   #canvas: HTMLCanvasElement;
-  #modules: Modules;
+  #modules: ModulesWithCore;
   #herald: Herald;
   #ctx: CanvasRenderingContext2D;
   #translationSet: number = 0;
@@ -83,7 +87,7 @@ export default class Workspace implements IWorkspace {
 
   constructor(
     canvas: HTMLCanvasElement|null,
-    modules: Modules,
+    modules: ModulesWithCore,
     herald: Herald,
   ) {
     if (!canvas) {

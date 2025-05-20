@@ -1,8 +1,9 @@
-import type { ModulesEvent, Modules } from "@boardmeister/antetype-core"
+import type { ModulesEvent } from "@boardmeister/antetype-core"
 import type { IInjectable } from "@boardmeister/marshal"
 import type { Minstrel } from "@boardmeister/minstrel"
 import type { Herald, ISubscriber, Subscriptions  } from "@boardmeister/herald"
 import type Workspace from "@src/module";
+import { type ModulesWithCore } from "@src/module";
 import { Event as AntetypeCoreEvent } from "@boardmeister/antetype-core"
 
 export interface IInjected extends Record<string, object> {
@@ -32,7 +33,7 @@ export class AntetypeWorkspace {
       const module = this.#injected!.minstrel.getResourceUrl(this, 'module.js');
       this.#module = (await import(module)).default;
     }
-    modules.workspace = new this.#module!(canvas, modules as Modules, this.#injected!.herald);
+    modules.workspace = new this.#module!(canvas, modules as ModulesWithCore, this.#injected!.herald);
   }
 
   static subscriptions: Subscriptions = {
