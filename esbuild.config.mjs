@@ -13,6 +13,7 @@ await esbuild.build({
   entryPoints: [
     resolve(__dirname, 'src/index.ts'),
     resolve(__dirname, 'src/module.ts'),
+    resolve(__dirname, 'src/module.conf.ts'),
   ],
   bundle: true,
   minify: true,

@@ -1,6 +1,6 @@
 {
   "name": "@boardmeister/antetype-workspace",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Antetype module for defining workspace and related features",
   "type": "module",
   "main": "dist/index.js",
@@ -50,15 +50,14 @@
     "postcss": "^8.4.38",
     "terser": "^5.31.0",
     "typescript": "^5.5.3",
-    "typescript-eslint": "^8.0.1"
+    "typescript-eslint": "^8.0.1",
+    "esbuild-copy-static-files": "^0.1.0"
   },
   "dependencies": {
-    "@boardmeister/antetype-conditions": "^0.0.1",
-    "@boardmeister/antetype-core": "^0.0.2",
-    "@boardmeister/antetype-cursor": "^0.0.1",
+    "@boardmeister/antetype-conditions": "^0.0.3",
+    "@boardmeister/antetype-core": "^0.0.3",
+    "@boardmeister/antetype-cursor": "^0.0.4",
     "@boardmeister/herald": "^0.0.1",
-    "@boardmeister/marshal": "^0.0.1",
-    "@boardmeister/minstrel": "^0.0.1",
-    "esbuild-copy-static-files": "^0.1.0"
+    "@boardmeister/marshal": "^0.0.2"
   }
 }

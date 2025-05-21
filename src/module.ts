@@ -1,73 +1,16 @@
-import { RegisterMethodEvent } from "@boardmeister/antetype-conditions";
+import type { RegisterMethodEvent } from "@boardmeister/antetype-conditions";
 import type { ICore, DrawEvent, IBaseDef, Modules, SettingsEvent, ISettingsDefinition } from "@boardmeister/antetype-core";
 import type { Herald  } from "@boardmeister/herald"
 import type { PositionEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCursorEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCoreEvent } from "@boardmeister/antetype-core"
-import { Event } from "./index";
+import { Event, BlobTypes } from "@src/type.d";
+import type {
+  IWorkspace, ITranslate, ICalcEvent, IDownloadSettings, IExportSettings, IWorkspaceSettings, IWorkspaceSize
+} from "@src/type.d";
 
 export interface ModulesWithCore extends Modules {
   core: ICore;
-}
-
-export interface ICalcEvent<T extends Record<string, any> = Record<string, any>> {
-  purpose: string;
-  layerType: string;
-  values: T;
-}
-
-export interface IWorkspace {
-  toRelative: (value: number, direction?: 'x'|'y') => string;
-  calc: (value: string) => number;
-  drawWorkspace: () => void;
-  download: (settings: IDownloadSettings) => Promise<void>;
-  export: (settings?: IExportSettings) => Promise<Blob>;
-  scale: (value: number) => number;
-  getQuality: () => number;
-  setQuality: (quality: any) => void;
-  getScale: () => number;
-  setScale: (scale: any) => void;
-  getSize: () => IWorkspaceSize;
-  setExporting: (toggle: boolean) => void;
-  isExporting: () => boolean;
-  setTranslateLeft: (left: number) => void;
-  setTranslateTop: (top: number) => void;
-  getTranslate: () => ITranslate;
-}
-
-export interface IWorkspaceSize {
-  width: number;
-  height: number;
-}
-
-export enum BlobTypes {
-  WEBP = 'image/webp',
-  PNG = 'image/png',
-  JPG = 'image/jpeg',
-}
-
-export interface IWorkspaceSettings {
-  height?: number,
-  width?: number;
-  relative?: {
-    height?: number,
-    width?: number;
-  }
-}
-
-export interface IExportSettings {
-  type?: BlobTypes|string;
-  quality?: number;
-  dpi?: number;
-}
-
-export interface IDownloadSettings extends IExportSettings {
-  filename: string;
-}
-
-export interface ITranslate {
-  left: number;
-  top: number;
 }
 
 export default class Workspace implements IWorkspace {
