@@ -92,6 +92,8 @@ export declare class Workspace implements IWorkspace {
 	handleConditionsMethodRegisterMethod(e: RegisterMethodEvent): void;
 	getSettingsDefinition(): ISettingsDefinition;
 }
+export declare const ID = "workspace";
+export declare const VERSION = "0.0.4";
 
 export {
 	Event$1 as Event,

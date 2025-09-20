@@ -1,7 +1,7 @@
 import type { ICore } from "@boardmeister/antetype-core";
 import Core from "@boardmeister/antetype-core/dist/core";
 import { Herald } from "@boardmeister/herald";
-import type { IWorkspaceSettings } from "@src/module";
+import type { IWorkspaceSettings } from "@src/type.d";
 import Workspace from "@src/module";
 import {
   initialize, close,
@@ -9,7 +9,7 @@ import {
 import workspaceDrawnBase64 from 'test/asset/ws-drawn.base64';
 
 /**
- * This suit will fail in browser as unless chrome is used. Different browsers differently generate canvas to base64
+ * This suit will fail in browser unless chrome is used. Different browsers differently generate canvas to base64
  */
 describe('Workspace space', () => {
   let workspace: Workspace, core: ICore;
