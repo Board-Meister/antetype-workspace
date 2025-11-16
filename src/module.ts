@@ -26,6 +26,12 @@ export default class Workspace implements IWorkspace {
     left: 0,
     top: 0,
   }
+  #canvasStats = {
+    init: {
+      width: 0,
+      height: 0,
+    }
+  }
 
   constructor(
     modules: ModulesWithCore,
@@ -34,6 +40,14 @@ export default class Workspace implements IWorkspace {
     this.#modules = modules;
     this.#herald = herald;
     this.#observer = new ResizeObserver(() => {
+      const canvas = this.#ctx().canvas;
+      // For HTML elements we are manually setting initial height and width
+      // as they tend to start at 0;0 instead of the actual size of element
+      // on the page. This makes it a little more manageable for users.
+      if (canvas instanceof HTMLCanvasElement) {
+        this.#canvasStats.init.height = canvas.offsetHeight;
+        this.#canvasStats.init.width = canvas.offsetWidth;
+      }
       if (!this.#updateCanvas() || !this.#modules.core) return;
       void this.#modules.core.view.recalculate().then(() => {
         this.#modules.core.view.redraw();
@@ -61,8 +75,17 @@ export default class Workspace implements IWorkspace {
             current.height = current.offsetHeight;
 
             this.#observer.observe(current);
+          }
+
+          if (current) {
+            this.#canvasStats.init.height = current.height;
+            this.#canvasStats.init.width = current.width;
             this.#updateCanvas(current);
           }
+
+          void this.#modules.core.view.recalculate().then(() => {
+            this.#modules.core.view.redraw();
+          })
         }
       },
       {
@@ -147,12 +170,7 @@ export default class Workspace implements IWorkspace {
 
   #updateCanvas(canvas?: Canvas): boolean {
     canvas ??= this.#ctx().canvas;
-    let width = canvas.width;
-    let height = canvas.height;
-    if (canvas instanceof HTMLCanvasElement) {
-      width = canvas.offsetWidth;
-      height = canvas.offsetHeight;
-    }
+    const { width, height } = this.#getCanvasCurrentSizes();
 
     const offWidth = width * this.#quality,
       offHeight = height * this.#quality
@@ -453,10 +471,9 @@ export default class Workspace implements IWorkspace {
   }
 
   #getCanvasCurrentSizes(): { height: number, width: number } {
-    const canvas = this.#ctx().canvas;
     return {
-      height: canvas instanceof HTMLCanvasElement ? canvas.offsetHeight : canvas.height,
-      width: canvas instanceof HTMLCanvasElement ? canvas.offsetWidth : canvas.width,
+      height: this.#canvasStats.init.height,
+      width: this.#canvasStats.init.width,
     }
   }
 

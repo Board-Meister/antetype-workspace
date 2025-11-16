@@ -171,7 +171,7 @@ interface ICore extends Module {
 		generateId: () => string;
 		layerDefinitions: () => ITypeDefinitionMap;
 		getCanvas: () => Canvas | null;
-		setCanvas: (newCanvas: null | Canvas) => void;
+		setCanvas: (newCanvas: null | Canvas) => Promise<void>;
 	};
 	clone: {
 		definitions: (data: IBaseDef) => Promise<IBaseDef>;
