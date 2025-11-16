@@ -22,7 +22,8 @@ describe('Workspace space', () => {
   document.body.appendChild(canvas);
   beforeEach(() => {
     core = Core({ herald, canvas }) as ICore;
-    workspace = new Workspace(canvas, { core }, herald);
+    workspace = new Workspace({ core }, herald);
+    core.meta.setCanvas(canvas);
   });
 
   afterEach(async () => {

@@ -1,13 +1,13 @@
 import { type ICore, Event as CoreEvent } from "@boardmeister/antetype-core";
 import Core from "@boardmeister/antetype-core/dist/core";
 import { Herald } from "@boardmeister/herald";
-import type { IWorkspaceSettings } from "@src/module";
 import Workspace from "@src/module";
 import {
   initialize, close,
   generateRandomLayer,
 } from "test/helpers/definition.helper";
 import exportBase64 from 'test/asset/export.base64';
+import type { IWorkspaceSettings } from "@src/type";
 
 /**
  * This suit will fail in browser as unless chrome is used. Different browsers differently generate canvas to base64
@@ -23,7 +23,8 @@ describe('Workspace export', () => {
   document.body.appendChild(canvas);
   beforeEach(() => {
     core = Core({ herald, canvas }) as ICore;
-    workspace = new Workspace(canvas, { core }, herald);
+    workspace = new Workspace({ core }, herald);
+    core.meta.setCanvas(canvas);
   });
 
   afterEach(async () => {

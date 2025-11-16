@@ -1,5 +1,5 @@
 import type { RegisterMethodEvent } from "@boardmeister/antetype-conditions";
-import type { ICore, DrawEvent, IBaseDef, Modules, SettingsEvent, ISettingsDefinition } from "@boardmeister/antetype-core";
+import type { ICore, DrawEvent, IBaseDef, Modules, SettingsEvent, ISettingsDefinition, CanvasChangeEvent, Canvas } from "@boardmeister/antetype-core";
 import type { Herald  } from "@boardmeister/herald"
 import type { PositionEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCursorEvent } from "@boardmeister/antetype-cursor"
@@ -14,34 +14,31 @@ export interface ModulesWithCore extends Modules {
 }
 
 export default class Workspace implements IWorkspace {
-  #canvas: HTMLCanvasElement;
   #modules: ModulesWithCore;
   #herald: Herald;
-  #ctx: CanvasRenderingContext2D;
   #translationSet: number = 0;
   #drawWorkspace = true;
   #isExporting = false;
   #quality = 1;
   #scale = 1;
+  #observer: ResizeObserver;
   #translate: ITranslate = {
     left: 0,
     top: 0,
   }
 
   constructor(
-    canvas: HTMLCanvasElement|null,
     modules: ModulesWithCore,
     herald: Herald,
   ) {
-    if (!canvas) {
-      throw new Error('[Antetype Workspace] Provided canvas is empty')
-    }
-    this.#canvas = canvas;
-    this.#updateCanvas();
     this.#modules = modules;
-    this.#ctx = this.#canvas.getContext('2d')!;
-    this.#observeCanvasResize();
     this.#herald = herald;
+    this.#observer = new ResizeObserver(() => {
+      if (!this.#updateCanvas() || !this.#modules.core) return;
+      void this.#modules.core.view.recalculate().then(() => {
+        this.#modules.core.view.redraw();
+      })
+    });
     this.subscribe();
   }
 
@@ -51,6 +48,21 @@ export default class Workspace implements IWorkspace {
         event: AntetypeCoreEvent.CLOSE,
         subscription: () => {
           unregister();
+        }
+      },
+      {
+        event: AntetypeCoreEvent.CANVAS_CHANGE,
+        subscription: ({ detail: { previous, current }}: CanvasChangeEvent) => {
+          if (previous instanceof HTMLCanvasElement) {
+            this.#observer.unobserve(previous);
+          }
+          if (current instanceof HTMLCanvasElement) {
+            current.width = current.offsetWidth;
+            current.height = current.offsetHeight;
+
+            this.#observer.observe(current);
+            this.#updateCanvas(current);
+          }
         }
       },
       {
@@ -124,29 +136,34 @@ export default class Workspace implements IWorkspace {
     }
   }
 
-  #observeCanvasResize(): void {
-    const resizeObserver = new ResizeObserver(() => {
-      if (!this.#updateCanvas() || !this.#modules.core) return;
-      void this.#modules.core.view.recalculate().then(() => {
-        this.#modules.core.view.redraw();
-      })
-    });
+  #ctx(): CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D {
+    const canvas = this.#modules.core.meta.getCanvas();
+    if (!canvas) {
+      throw new Error('[Antetype Workspace] Provided canvas is empty')
+    }
 
-    resizeObserver.observe(this.#canvas);
+    return canvas.getContext('2d')!;
   }
 
-  #updateCanvas(): boolean {
-    const offWidth = this.#canvas.offsetWidth * this.#quality,
-      offHeight = this.#canvas.offsetHeight * this.#quality,
-     currentW = Number(this.#canvas.getAttribute('width')),
-     currentH = Number(this.#canvas.getAttribute('height'))
+  #updateCanvas(canvas?: Canvas): boolean {
+    canvas ??= this.#ctx().canvas;
+    let width = canvas.width;
+    let height = canvas.height;
+    if (canvas instanceof HTMLCanvasElement) {
+      width = canvas.offsetWidth;
+      height = canvas.offsetHeight;
+    }
+
+    const offWidth = width * this.#quality,
+      offHeight = height * this.#quality
     ;
-    if (!offHeight || !offWidth || (currentW === offWidth && currentH === offHeight)) {
+
+    if (!offHeight || !offWidth || (offWidth === canvas.width && offHeight === canvas.height)) {
       return false;
     }
 
-    this.#canvas.setAttribute('height', String(offHeight));
-    this.#canvas.setAttribute('width', String(offWidth));
+    canvas.height = offHeight;
+    canvas.width = offWidth;
 
     return true;
   }
@@ -234,7 +251,7 @@ export default class Workspace implements IWorkspace {
       this.setExporting(true);
       this.#updateQualityBasedOnDpi(dpi);
       this.#updateCanvas();
-      await view.recalculate()
+      await view.recalculate();
       view.redraw();
       const blob = await this.#canvasToBlob(type as BlobTypes, quality);
       if (!blob) {
@@ -247,7 +264,7 @@ export default class Workspace implements IWorkspace {
       this.setExporting(false);
       this.setQuality(1);
       this.#updateCanvas();
-      await view.recalculate()
+      await view.recalculate();
       view.redraw();
     }
   }
@@ -257,7 +274,7 @@ export default class Workspace implements IWorkspace {
     const top = this.getTop();
     const left = this.getLeft();
 
-    const image = this.#ctx.getImageData(left, top, width, height),
+    const image = this.#ctx().getImageData(left, top, width, height),
       canvas1 = document.createElement('canvas')
     ;
 
@@ -282,12 +299,12 @@ export default class Workspace implements IWorkspace {
   }
 
   clearCanvas(): void {
-    const ctx = this.#ctx;
+    const ctx = this.#ctx();
     ctx.clearRect(
       -this.getLeft(),
       -this.getTop(),
-      this.#canvas.width,
-      this.#canvas.height,
+      ctx.canvas.width,
+      ctx.canvas.height,
     );
   }
 
@@ -303,7 +320,7 @@ export default class Workspace implements IWorkspace {
     if (this.#isExporting) {
       return;
     }
-    const ctx = this.#ctx;
+    const ctx = this.#ctx();
     ctx.save();
     const { height, width } = this.getSize();
     ctx.fillStyle = "#FFF";
@@ -312,15 +329,15 @@ export default class Workspace implements IWorkspace {
   }
 
   getLeft(): number {
-    const ctx = this.#ctx;
+    const ctx = this.#ctx();
     const { width } = this.getSize();
-    return ((Number(ctx.canvas.getAttribute('width')!) - width) / 2) + this.getTranslate().left;
+    return ((Number(ctx.canvas.width) - width) / 2) + this.getTranslate().left;
   }
 
   getTop(): number {
-    const ctx = this.#ctx;
+    const ctx = this.#ctx();
     const { height } = this.getSize();
-    return ((Number(ctx.canvas.getAttribute('height')!) - height) / 2) + this.getTranslate().top;
+    return ((Number(ctx.canvas.height) - height) / 2) + this.getTranslate().top;
   }
 
   setOrigin(): void {
@@ -328,7 +345,7 @@ export default class Workspace implements IWorkspace {
     if (this.#translationSet > 1) {
       return;
     }
-    const ctx = this.#ctx;
+    const ctx = this.#ctx();
     ctx.save();
     ctx.translate(this.getLeft(), this.getTop());
   }
@@ -338,7 +355,7 @@ export default class Workspace implements IWorkspace {
     if (this.#translationSet != 0) {
       return;
     }
-    this.#ctx.restore();
+    this.#ctx().restore();
   }
 
   toRelative(value: number, direction: 'x'|'y' = 'x', precision = 3): string {
@@ -435,8 +452,16 @@ export default class Workspace implements IWorkspace {
     return this.#modules.core as ICore;
   }
 
+  #getCanvasCurrentSizes(): { height: number, width: number } {
+    const canvas = this.#ctx().canvas;
+    return {
+      height: canvas instanceof HTMLCanvasElement ? canvas.offsetHeight : canvas.height,
+      width: canvas instanceof HTMLCanvasElement ? canvas.offsetWidth : canvas.width,
+    }
+  }
+
   #getSettings(): IWorkspaceSettings {
-    const height = this.#ctx.canvas.offsetHeight;
+    const { height } = this.#getCanvasCurrentSizes();
     const set = (this.#getSystem().setting.get('workspace') ?? {}) as IWorkspaceSettings;
     if (isNaN(Number(set.height))) {
       set.height = height;
@@ -454,12 +479,12 @@ export default class Workspace implements IWorkspace {
     const { width: aWidth, height: aHeight } = this.#getSettings()!,
       ratio = aWidth!/aHeight!
     ;
-    let height = this.#ctx.canvas.offsetHeight,
+    let { height, width: cWidth } = this.#getCanvasCurrentSizes(),
       width = height * ratio
     ;
 
-    if (width > this.#ctx.canvas.offsetWidth) {
-      width = this.#ctx.canvas.offsetWidth;
+    if (width > cWidth) {
+      width = cWidth;
       height = width / ratio;
     }
 
@@ -481,7 +506,7 @@ export default class Workspace implements IWorkspace {
       width: settings.relative?.width ?? 0,
       height: settings.relative?.height ?? 0,
     }
-    const height = this.#ctx.canvas.offsetHeight;
+    const { height, width } = this.#getCanvasCurrentSizes()
 
     if (!size.width) {
       size.width = this.scale(height * ratio);
@@ -491,9 +516,9 @@ export default class Workspace implements IWorkspace {
       size.height = this.scale(height);
     }
 
-    if (size.width > this.scale(this.#ctx.canvas.offsetWidth)) {
-      size.width = this.scale(this.#ctx.canvas.offsetWidth);
-      size.height = this.scale(this.#ctx.canvas.offsetWidth / ratio);
+    if (size.width > this.scale(width)) {
+      size.width = this.scale(width);
+      size.height = this.scale(width / ratio);
     }
 
     return {
@@ -509,7 +534,7 @@ export default class Workspace implements IWorkspace {
       type: 'hide-export',
       resolve: ({ event }) => {
         if (this.isExporting()) {
-          event.detail.element = null;
+          event.detail.element = {type: 'none', start: { x:0, y:0 }, size: {w:0, h:0 }};
         }
       }
     }

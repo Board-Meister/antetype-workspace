@@ -1,8 +1,8 @@
 import type { ICore } from "@boardmeister/antetype-core";
 import Core from "@boardmeister/antetype-core/dist/core";
 import { Herald } from "@boardmeister/herald";
-import type { IWorkspaceSettings } from "@src/module";
 import Workspace from "@src/module";
+import type { IWorkspaceSettings } from "@src/type";
 import {
   initialize, close,
 } from "test/helpers/definition.helper";
@@ -18,7 +18,8 @@ describe('Workspace calculations', () => {
   document.body.appendChild(canvas);
   beforeEach(() => {
     core = Core({ herald, canvas }) as ICore;
-    workspace = new Workspace(canvas, { core }, herald);
+    workspace = new Workspace({ core }, herald);
+    core.meta.setCanvas(canvas);
   });
 
   afterEach(async () => {
