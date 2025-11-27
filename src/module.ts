@@ -32,6 +32,7 @@ export default class Workspace implements IWorkspace {
       height: 0,
     }
   }
+  #unregisterEvents: VoidFunction|null = null;
 
   constructor(
     modules: ModulesWithCore,
@@ -53,16 +54,22 @@ export default class Workspace implements IWorkspace {
         this.#modules.core.view.redraw();
       })
     });
-    this.subscribe();
+    this.#subscribe();
   }
 
-  subscribe(): void {
-    const unregister = this.#herald.batch([
+  #subscribe(anchor: Canvas|null = null): void {
+    if (this.#unregisterEvents) {
+      this.#unregisterEvents();
+    }
+
+    anchor ??= this.#canvas();
+    this.#unregisterEvents = this.#herald.batch([
       {
         event: AntetypeCoreEvent.CLOSE,
         subscription: () => {
-          unregister();
-        }
+          this.#unregisterEvents!();
+        },
+        anchor,
       },
       {
         event: AntetypeCoreEvent.CANVAS_CHANGE,
@@ -81,16 +88,19 @@ export default class Workspace implements IWorkspace {
             this.#canvasStats.init.height = current.height;
             this.#canvasStats.init.width = current.width;
             this.#updateCanvas(current);
+            this.#subscribe(current);
           }
 
           void this.#modules.core.view.recalculate().then(() => {
             this.#modules.core.view.redraw();
           })
-        }
+        },
+        anchor,
       },
       {
         event: Event.CALC,
         subscription: this.calcEventHandle.bind(this),
+        anchor,
       },
       {
         event: AntetypeCoreEvent.DRAW,
@@ -109,18 +119,21 @@ export default class Workspace implements IWorkspace {
               }
             },
             priority: 1,
+            anchor,
           },
           {
             method: (): void => {
               this.setOrigin();
             },
             priority: -255,
+            anchor,
           },
           {
             method: (): void => {
               this.restore();
             },
             priority: 255,
+            anchor,
           }
         ]
       },
@@ -130,23 +143,27 @@ export default class Workspace implements IWorkspace {
         subscription: (event: CustomEvent<PositionEvent>): void => {
           event.detail.x -= this.getLeft();
           event.detail.y -= this.getTop();
-        }
+        },
+        anchor,
       },
       {
         event: AntetypeCursorEvent.CALC,
         subscription: this.calcEventHandle.bind(this),
+        anchor,
       },
       {
         event: AntetypeCoreEvent.SETTINGS,
         subscription: (e: SettingsEvent): void => {
           e.detail.settings.push(this.getSettingsDefinition());
-        }
+        },
+        anchor,
       },
       {
         event: 'antetype.conditions.method.register',
         subscription: (e: RegisterMethodEvent): void => {
           this.handleConditionsMethodRegisterMethod(e);
-        }
+        },
+        anchor,
       }
     ])
   }
@@ -159,13 +176,17 @@ export default class Workspace implements IWorkspace {
     }
   }
 
+  #canvas(): Canvas|null {
+    return this.#modules.core.meta.getCanvas();
+  }
+
   #ctx(): CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D {
-    const canvas = this.#modules.core.meta.getCanvas();
+    const canvas = this.#canvas();
     if (!canvas) {
       throw new Error('[Antetype Workspace] Provided canvas is empty')
     }
 
-    return canvas.getContext('2d')!;
+    return canvas.getContext('2d') as CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D;
   }
 
   #updateCanvas(canvas?: Canvas): boolean {
