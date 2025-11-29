@@ -42,17 +42,22 @@ export default class Workspace implements IWorkspace {
     this.#herald = herald;
     this.#observer = new ResizeObserver(() => {
       const canvas = this.#ctx().canvas;
+
       // For HTML elements we are manually setting initial height and width
       // as they tend to start at 0;0 instead of the actual size of element
       // on the page. This makes it a little more manageable for users.
-      if (canvas instanceof HTMLCanvasElement) {
-        this.#canvasStats.init.height = canvas.offsetHeight;
-        this.#canvasStats.init.width = canvas.offsetWidth;
+      if (canvas instanceof HTMLCanvasElement && canvas.offsetWidth > 0 && canvas.offsetHeight > 0) {
+        this.#setCanvasCurrentSizes(canvas.offsetWidth, canvas.offsetHeight);
       }
       if (!this.#updateCanvas() || !this.#modules.core) return;
-      void this.#modules.core.view.recalculate().then(() => {
+      // Immediate recalculation and redraw to not show empty canvas
+      this.#modules.core.view.recalculate().then(() => {
         this.#modules.core.view.redraw();
-      })
+      });
+      // Proper recalculation and redraw after all resize events stop
+      this.#modules.core.view.recalculateDebounce().then(() => {
+        this.#modules.core.view.redrawDebounce();
+      });
     });
     this.#subscribe();
   }
@@ -85,8 +90,7 @@ export default class Workspace implements IWorkspace {
           }
 
           if (current) {
-            this.#canvasStats.init.height = current.height;
-            this.#canvasStats.init.width = current.width;
+            this.#setCanvasCurrentSizes(current.width, current.width);
             this.#updateCanvas(current);
             this.#subscribe(current);
           }
@@ -314,26 +318,22 @@ export default class Workspace implements IWorkspace {
     const left = this.getLeft();
 
     const image = this.#ctx().getImageData(left, top, width, height),
-      canvas1 = document.createElement('canvas')
+      canvas1 = new OffscreenCanvas(width, height)
     ;
 
-    canvas1.width = width;
-    canvas1.height = height;
     const ctx1 = canvas1.getContext('2d')!;
     ctx1.putImageData(image, 0, 0);
-    return new Promise(resolve => {
+    return new Promise(async resolve => {
       const timeout = setTimeout(() => {
         resolve(null);
       }, 30000);
 
-      canvas1.toBlob(
-        blob => {
-          clearTimeout(timeout);
-          resolve(blob);
-        },
+      const blob = await canvas1.convertToBlob({
         type,
         quality,
-      );
+      });
+      clearTimeout(timeout);
+      resolve(blob);
     })
   }
 
@@ -496,6 +496,11 @@ export default class Workspace implements IWorkspace {
       height: this.#canvasStats.init.height,
       width: this.#canvasStats.init.width,
     }
+  }
+
+  #setCanvasCurrentSizes(width: number, height: number): void {
+    this.#canvasStats.init.height = height;
+    this.#canvasStats.init.width = width;
   }
 
   #getSettings(): IWorkspaceSettings {
