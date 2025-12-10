@@ -287,15 +287,19 @@ export default class Workspace implements IWorkspace {
   }
 
   async export({ type = BlobTypes.WEBP, quality = .9, dpi = 300 }: IExportSettings = {}): Promise<Blob> {
+    const settings = this.#modules.core.setting;
     const view = this.#modules.core.view;
     const shouldDrawWorkspaceInitial = this.#drawWorkspace;
     try {
+      const waitforLoad = settings.get<boolean>('illustrator.image.waitForLoad');
+      settings.set('illustrator.image.waitForLoad', true);
       this.#drawWorkspace = false;
       this.setExporting(true);
       this.#updateQualityBasedOnDpi(dpi);
       this.#updateCanvas();
       await view.recalculate();
       view.redraw();
+      settings.set('illustrator.image.waitForLoad', waitforLoad);
       const blob = await this.#canvasToBlob(type as BlobTypes, quality);
       if (!blob) {
         throw new Error('Couldn\'t export canvas workspace')
