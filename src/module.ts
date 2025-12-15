@@ -278,12 +278,13 @@ export default class Workspace implements IWorkspace {
    * DPI calculation is made against A4 format
    */
   #updateQualityBasedOnDpi(dpi: number): void {
+    const a4HeightMm = 297;
     const inch = 25.4;
-    const a4HeightInInched = 297/inch;
-    const pixels = dpi*a4HeightInInched;
-    const absoluteHeight = this.getSize().height / this.#quality;
 
-    this.setQuality(pixels / absoluteHeight);
+    const targetHeightPx = (a4HeightMm / inch) * dpi;
+    const absoluteHeight = this.getSize().height;
+
+    this.setQuality(targetHeightPx / absoluteHeight);
   }
 
   async export({ type = BlobTypes.WEBP, quality = .9, dpi = 300 }: IExportSettings = {}): Promise<Blob> {
