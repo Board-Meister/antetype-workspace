@@ -60,6 +60,28 @@ export interface ITranslate {
 	top: number;
 }
 declare type UnknownRecord = Record<symbol | string, unknown>;
+type AmbiguousSubscription = string | OptionalSubscription | OptionalSubscription[] | EventHandler;
+type EventHandler = (event: CustomEvent) => Promise<any> | any;
+type Anchor = Node | object | symbol | null;
+interface OptionalSubscription {
+	method: string | EventHandler;
+	priority?: number;
+	constraint?: string | Module | null;
+	anchor?: Anchor;
+}
+interface IEventRegistration {
+	event: string;
+	subscription: AmbiguousSubscription;
+	constraint?: string | Module | null;
+	sort?: boolean;
+	symbol?: symbol | null;
+	anchor?: Anchor;
+}
+type LocalizedEventDirection = "up" | "down" | "both";
+interface IEventSettings {
+	origin?: Anchor;
+	direction?: LocalizedEventDirection;
+}
 declare type Module$1 = object;
 interface Modules {
 	core?: ICore;
@@ -167,6 +189,11 @@ interface IFont {
 	name: string;
 }
 interface ICore extends Module$1 {
+	event: {
+		batch: (events: IEventRegistration[], anchor?: Canvas | null) => VoidFunction;
+		dispatch(event: CustomEvent, settings?: IEventSettings): Promise<void>;
+		dispatchSync(event: CustomEvent, settings?: IEventSettings): void;
+	};
 	meta: {
 		document: IDocumentDef;
 		generateId: () => string;
@@ -215,42 +242,42 @@ interface ICore extends Module$1 {
 	};
 }
 type Layout = (IBaseDef | IParentDef)[];
-type AmbiguousSubscription = string | OptionalSubscription | OptionalSubscription[] | EventHandler;
-type EventHandler = (event: CustomEvent) => Promise<any> | any;
-type Anchor = Node | object | symbol | null;
-interface OptionalSubscription {
-	method: string | EventHandler;
+type AmbiguousSubscription$1 = string | OptionalSubscription$1 | OptionalSubscription$1[] | EventHandler$1;
+type EventHandler$1 = (event: CustomEvent) => Promise<any> | any;
+type Anchor$1 = Node | object | symbol | null;
+interface OptionalSubscription$1 {
+	method: string | EventHandler$1;
 	priority?: number;
 	constraint?: string | Module | null;
-	anchor?: Anchor;
+	anchor?: Anchor$1;
 }
-interface IEventRegistration {
+interface IEventRegistration$1 {
 	event: string;
-	subscription: AmbiguousSubscription;
+	subscription: AmbiguousSubscription$1;
 	constraint?: string | Module | null;
 	sort?: boolean;
 	symbol?: symbol | null;
-	anchor?: Anchor;
+	anchor?: Anchor$1;
 }
 interface IListen {
 	event: string;
-	subscription: AmbiguousSubscription;
-	anchor?: Anchor;
+	subscription: AmbiguousSubscription$1;
+	anchor?: Anchor$1;
 	symbol?: symbol | null;
 	sort?: boolean;
 	constraint?: string | Module | null;
 }
-type LocalizedEventDirection = "up" | "down" | "both";
-interface IEventSettings {
-	origin?: Anchor;
-	direction?: LocalizedEventDirection;
+type LocalizedEventDirection$1 = "up" | "down" | "both";
+interface IEventSettings$1 {
+	origin?: Anchor$1;
+	direction?: LocalizedEventDirection$1;
 }
 declare class Herald {
 	#private;
 	constructor(marshal?: Marshal | null);
-	dispatch(event: CustomEvent, settings?: IEventSettings): Promise<void>;
-	dispatchSync(event: CustomEvent, settings?: IEventSettings): void;
-	batch(events: IEventRegistration[]): () => void;
+	dispatch(event: CustomEvent, settings?: IEventSettings$1): Promise<void>;
+	dispatchSync(event: CustomEvent, settings?: IEventSettings$1): void;
+	batch(events: IEventRegistration$1[]): () => void;
 	/**
 	 * Wrapper method for `register`
 	 * Makes is easier when you want to specify just anchor or just symbol. Thanks to that we don't have to write:
@@ -264,7 +291,7 @@ declare class Herald {
 	 * still, using registration can result in a smaller size, so it's not completely useless.
 	 */
 	listen({ event, subscription, constraint, sort, symbol, anchor, }: IListen): () => void;
-	register(event: string, subscription: AmbiguousSubscription, constraint?: string | Module | null, sort?: boolean, symbol?: symbol | null, anchor?: Anchor): () => void;
+	register(event: string, subscription: AmbiguousSubscription$1, constraint?: string | Module | null, sort?: boolean, symbol?: symbol | null, anchor?: Anchor$1): () => void;
 	unregister(event: string, symbol: symbol): void;
 }
 interface ModulesWithCore extends Modules {
