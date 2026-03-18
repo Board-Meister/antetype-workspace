@@ -69,7 +69,6 @@ export default class Workspace implements IWorkspace {
     if (canvas) {
       this.#setCanvasCurrentSizes(canvas.width, canvas.width);
       this.#updateCanvas(canvas);
-      this.#subscribe(canvas);
     }
 
     void this.#modules.core.view.recalculate().then(() => {
@@ -77,8 +76,7 @@ export default class Workspace implements IWorkspace {
     })
   }
 
-  #subscribe(anchor: Canvas|null = null): void {
-    anchor ??= this.#canvas();
+  #subscribe(): void {
     this.#modules.core.event.batch([
       {
         event: AntetypeCoreEvent.CANVAS_CHANGE,
@@ -88,12 +86,10 @@ export default class Workspace implements IWorkspace {
           }
           this.#initializeCanvas(current);
         },
-        anchor,
       },
       {
         event: Event.CALC,
         subscription: this.calcEventHandle.bind(this),
-        anchor,
       },
       {
         event: AntetypeCoreEvent.DRAW,
@@ -112,21 +108,18 @@ export default class Workspace implements IWorkspace {
               }
             },
             priority: 1,
-            anchor,
           },
           {
             method: (): void => {
               this.setOrigin();
             },
             priority: -255,
-            anchor,
           },
           {
             method: (): void => {
               this.restore();
             },
             priority: 255,
-            anchor,
           }
         ]
       },
@@ -137,26 +130,22 @@ export default class Workspace implements IWorkspace {
           event.detail.x -= this.getLeft();
           event.detail.y -= this.getTop();
         },
-        anchor,
       },
       {
         event: AntetypeCursorEvent.CALC,
         subscription: this.calcEventHandle.bind(this),
-        anchor,
       },
       {
         event: AntetypeCoreEvent.SETTINGS,
         subscription: (e: SettingsEvent): void => {
           e.detail.settings.push(this.getSettingsDefinition());
         },
-        anchor,
       },
       {
         event: 'antetype.conditions.method.register',
         subscription: (e: RegisterMethodEvent): void => {
           this.handleConditionsMethodRegisterMethod(e);
         },
-        anchor,
       }
     ])
   }
@@ -286,7 +275,6 @@ export default class Workspace implements IWorkspace {
       this.#drawWorkspace = false;
       this.setExporting(true);
       this.#updateQualityBasedOnDpi(dpi);
-      this.#updateCanvas();
       await view.recalculate();
       view.redraw();
       settings.set('illustrator.image.waitForLoad', waitforLoad);
