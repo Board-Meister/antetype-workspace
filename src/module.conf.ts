@@ -38,7 +38,6 @@ export class AntetypeWorkspace {
 
         return modules => new this.#module!(
           modules as ModulesWithCore,
-          this.#injected!.herald,
         );
       },
       version: VERSION,

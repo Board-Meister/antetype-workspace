@@ -1,6 +1,5 @@
 import type { RegisterMethodEvent } from "@boardmeister/antetype-conditions";
 import type { ICore, DrawEvent, IBaseDef, Modules, SettingsEvent, ISettingsDefinition, CanvasChangeEvent, Canvas } from "@boardmeister/antetype-core";
-import type { Herald  } from "@boardmeister/herald"
 import type { PositionEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCursorEvent } from "@boardmeister/antetype-cursor"
 import { Event as AntetypeCoreEvent } from "@boardmeister/antetype-core"
@@ -15,7 +14,6 @@ export interface ModulesWithCore extends Modules {
 
 export default class Workspace implements IWorkspace {
   #modules: ModulesWithCore;
-  #herald: Herald;
   #translationSet: number = 0;
   #drawWorkspace = true;
   #isExporting = false;
@@ -32,14 +30,11 @@ export default class Workspace implements IWorkspace {
       height: 0,
     }
   }
-  #unregisterEvents: VoidFunction|null = null;
 
   constructor(
     modules: ModulesWithCore,
-    herald: Herald,
   ) {
     this.#modules = modules;
-    this.#herald = herald;
     this.#observer = new ResizeObserver(() => {
       const canvas = this.#ctx().canvas;
 
@@ -59,45 +54,39 @@ export default class Workspace implements IWorkspace {
         this.#modules.core.view.redrawDebounce();
       });
     });
+    this.#initializeCanvas(this.#modules.core.meta.getCanvas());
     this.#subscribe();
   }
 
-  #subscribe(anchor: Canvas|null = null): void {
-    if (this.#unregisterEvents) {
-      this.#unregisterEvents();
+  #initializeCanvas(canvas?: Canvas|null) {
+    if (canvas instanceof HTMLCanvasElement) {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+
+      this.#observer.observe(canvas);
     }
 
+    if (canvas) {
+      this.#setCanvasCurrentSizes(canvas.width, canvas.width);
+      this.#updateCanvas(canvas);
+      this.#subscribe(canvas);
+    }
+
+    void this.#modules.core.view.recalculate().then(() => {
+      this.#modules.core.view.redraw();
+    })
+  }
+
+  #subscribe(anchor: Canvas|null = null): void {
     anchor ??= this.#canvas();
-    this.#unregisterEvents = this.#herald.batch([
-      {
-        event: AntetypeCoreEvent.CLOSE,
-        subscription: () => {
-          this.#unregisterEvents!();
-        },
-        anchor,
-      },
+    this.#modules.core.event.batch([
       {
         event: AntetypeCoreEvent.CANVAS_CHANGE,
         subscription: ({ detail: { previous, current }}: CanvasChangeEvent) => {
           if (previous instanceof HTMLCanvasElement) {
             this.#observer.unobserve(previous);
           }
-          if (current instanceof HTMLCanvasElement) {
-            current.width = current.offsetWidth;
-            current.height = current.offsetHeight;
-
-            this.#observer.observe(current);
-          }
-
-          if (current) {
-            this.#setCanvasCurrentSizes(current.width, current.width);
-            this.#updateCanvas(current);
-            this.#subscribe(current);
-          }
-
-          void this.#modules.core.view.recalculate().then(() => {
-            this.#modules.core.view.redraw();
-          })
+          this.#initializeCanvas(current);
         },
         anchor,
       },
